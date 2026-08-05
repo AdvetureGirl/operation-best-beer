@@ -891,6 +891,18 @@
 .test-guest-chip.reserved{border-color:#8f1837;color:#8f1837;font-weight:900}
 .host-link-button{width:100%;min-height:42px;margin-top:18px;border:1px solid #777;background:transparent;color:#171717;font-weight:900}
 .host-access-footer{text-align:center;margin:10px 0 0!important;font-size:.68rem;color:#6b6760;text-transform:uppercase;letter-spacing:.1em}
+
+.release-target-popup{
+  width:100%;
+  min-height:48px;
+  margin-top:10px;
+  border:1px solid #8f1837;
+  background:transparent;
+  color:#8f1837;
+  font-weight:950;
+  letter-spacing:.11em;
+  text-transform:uppercase;
+}
 </style>
 </head>
 <body>
@@ -1194,7 +1206,7 @@
 <h2 id="target-transmission-title">Next Target</h2>
 <div class="selected-target-name" id="selected-target-name">KEVIN</div>
 <p>Notify this Minion to check their mission board immediately.</p>
-<button id="acknowledge-target" type="button">Understood</button>
+<button id="acknowledge-target" type="button">Understood</button><button class="release-target-popup" id="release-target-popup" type="button">Release Target</button>
 <p aria-live="polite" class="target-trigger-status" id="target-trigger-status"></p>
 </section>
 </div><div aria-hidden="true" class="scarlet-hijack-overlay hidden" id="scarlet-hijack-overlay">
@@ -1458,6 +1470,10 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   let currentTarget="Kevin";
   let callStarted=false;
   let sequence=Number(localStorage.getItem("scarletRecordedCallSequence_v1")||"0");
+  window.addEventListener("scarletResetSequence",()=>{
+    sequence=0;
+    localStorage.setItem("scarletRecordedCallSequence_v1","0");
+  });
 
   function safePlay(audio){
     try{audio.currentTime=0;const p=audio.play();if(p&&p.catch)p.catch(()=>{});}catch(_){}
@@ -1653,6 +1669,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   const nextCall=document.getElementById("host-next-call");
   const pauseOperation=document.getElementById("pause-operation");
   const releaseTarget=document.getElementById("release-target");
+  const releaseTargetPopup=document.getElementById("release-target-popup");
   const endOperation=document.getElementById("end-operation");
 
   const guestInput=document.getElementById("test-guest-name");
@@ -1729,6 +1746,15 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
       codeInput.select();
     }
   }
+  function releaseCurrentTarget(){
+    if(!reserved)return false;
+    reserved="";
+    localStorage.removeItem("scarletPendingHijackTarget");
+    localStorage.removeItem("scarletPendingHijackTimestamp");
+    updatePanel();
+    return true;
+  }
+
   function reserveRandom(){
     const pool=eligibleGuests();
     if(!pool.length){
@@ -1766,6 +1792,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
     reserved="";
     guests=guests.map(g=>({...g,completed:false}));
     localStorage.setItem("scarletRecordedCallSequence_v1","0");
+    window.dispatchEvent(new Event("scarletResetSequence"));
     localStorage.removeItem("scarletPendingHijackTarget");
     localStorage.removeItem("scarletPendingHijackTimestamp");
     updatePanel();
@@ -1793,15 +1820,18 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   });
 
   releaseTarget?.addEventListener("click",()=>{
-    if(!reserved){
+    if(!releaseCurrentTarget()){
       alert("No target is currently reserved.");
-      return;
     }
-    reserved="";
-    localStorage.removeItem("scarletPendingHijackTarget");
-    localStorage.removeItem("scarletPendingHijackTimestamp");
-    updatePanel();
   });
+
+  releaseTargetPopup?.addEventListener("click",()=>{
+    if(!releaseCurrentTarget())return;
+    document.getElementById("target-transmission-overlay")?.classList.add("hidden");
+    document.getElementById("target-transmission-overlay")?.setAttribute("aria-hidden","true");
+  });
+
+  window.addEventListener("gruReleaseTargetRequested",releaseCurrentTarget);
 
   endOperation?.addEventListener("click",()=>{
     if(!confirm("End Operation? Scarlet calls will stop and the Mission Debrief will become available later."))return;
