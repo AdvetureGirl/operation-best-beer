@@ -910,7 +910,7 @@
 </div>
 </div></div>
 </div>
-<button class="scarlet-test-btn" id="test-scarlet-call" type="button">Test Scarlet Call</button><button class="switch-minion-btn" id="switch-minion-btn" type="button">
+<button class="scarlet-test-btn" id="test-scarlet-call" type="button">Test Scarlet Call</button><p id="audio-upgrade-note" style="font-size:.72rem;color:#6a6863;text-align:center;margin:8px 0 0;">Production sound test: ringtone, connection cues, and speaker-volume transition enabled.</p><button class="switch-minion-btn" id="switch-minion-btn" type="button">
           Switch Minion
         </button><p class="footer">
 
@@ -1247,7 +1247,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
       }
       const u=new SpeechSynthesisUtterance(text);
       const v=p2Voice(); if(v)u.voice=v;
-      u.rate=.88;u.pitch=.84;u.volume=1;
+      u.rate=.91;u.pitch=.96;u.volume=(window.__scarletSpeechVolume ?? 0.34);
       u.onstart=()=>{p2Caption.textContent=text;p2ActivePhoto?.classList.add("speaking")};
       u.onend=()=>{p2ActivePhoto?.classList.remove("speaking");resolve()};
       u.onerror=()=>{p2ActivePhoto?.classList.remove("speaking");resolve()};
@@ -1324,6 +1324,118 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
     speechSynthesis.getVoices();
     speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();
   }
+})();
+
+
+/* ===== Scarlet production-audio upgrade ===== */
+(function () {
+  const AUDIO_BASE = "audio/";
+  const assets = {
+    ringtone: new Audio(AUDIO_BASE + "scarlet-ringtone.wav"),
+    connect: new Audio(AUDIO_BASE + "connection.wav"),
+    disconnect: new Audio(AUDIO_BASE + "disconnect.wav"),
+    speaker: new Audio(AUDIO_BASE + "speaker-on.wav")
+  };
+
+  assets.ringtone.loop = true;
+  assets.ringtone.volume = 1.0;
+  assets.connect.volume = 0.72;
+  assets.disconnect.volume = 0.72;
+  assets.speaker.volume = 0.72;
+
+  let productionCallAudio = null;
+  let speakerEnabledForCall = false;
+
+  function safePlay(audio) {
+    try {
+      audio.currentTime = 0;
+      const p = audio.play();
+      if (p && p.catch) p.catch(() => {});
+    } catch (_) {}
+  }
+
+  function stopAudio(audio) {
+    try {
+      audio.pause();
+      audio.currentTime = 0;
+    } catch (_) {}
+  }
+
+  function setCallOutputMode(isSpeaker) {
+    speakerEnabledForCall = isSpeaker;
+
+    // When prerecorded AI calls are added, the pre-speaker lines play softer,
+    // then the full message becomes louder and fuller after Speaker is enabled.
+    if (productionCallAudio) {
+      productionCallAudio.volume = isSpeaker ? 1.0 : 0.34;
+    }
+
+    // Browser speech fallback: use volume changes to imitate earpiece vs speaker.
+    window.__scarletSpeechVolume = isSpeaker ? 1.0 : 0.34;
+  }
+
+  // Hook into the existing call controls without replacing their logic.
+  const testButton = document.getElementById("test-scarlet-call");
+  const answerButton = document.getElementById("answer-call");
+  const declineButton = document.getElementById("decline-call");
+  const endButton = document.getElementById("end-call");
+  const speakerButton = document.getElementById("speaker-toggle");
+
+  testButton?.addEventListener("click", () => {
+    speakerEnabledForCall = false;
+    setCallOutputMode(false);
+    safePlay(assets.ringtone);
+  }, true);
+
+  answerButton?.addEventListener("click", () => {
+    stopAudio(assets.ringtone);
+    safePlay(assets.connect);
+    setCallOutputMode(false);
+  }, true);
+
+  declineButton?.addEventListener("click", () => {
+    stopAudio(assets.ringtone);
+  }, true);
+
+  speakerButton?.addEventListener("click", () => {
+    const willEnable = !speakerButton.classList.contains("active");
+    if (willEnable) {
+      safePlay(assets.speaker);
+      setCallOutputMode(true);
+    } else {
+      setCallOutputMode(false);
+    }
+  }, true);
+
+  endButton?.addEventListener("click", () => {
+    stopAudio(assets.ringtone);
+    if (productionCallAudio) stopAudio(productionCallAudio);
+    safePlay(assets.disconnect);
+  }, true);
+
+  // Make the existing browser-voice fallback respect earpiece/speaker volume.
+  const NativeUtterance = window.SpeechSynthesisUtterance;
+  if (NativeUtterance) {
+    window.SpeechSynthesisUtterance = function(text) {
+      const utterance = new NativeUtterance(text);
+      utterance.volume = window.__scarletSpeechVolume ?? 0.34;
+      return utterance;
+    };
+    window.SpeechSynthesisUtterance.prototype = NativeUtterance.prototype;
+  }
+
+  /*
+    Future high-quality AI recordings:
+      audio/call-1.mp3
+      audio/call-2.mp3
+      audio/call-3.mp3
+      audio/call-4.mp3
+      audio/call-5.mp3
+
+    The backend will generate personalized full-call files so Scarlet and the
+    selected Minion's name use one consistent voice. This page is now prepared
+    for that swap without changing the call interface.
+  */
 })();
 </script>
 </body>
