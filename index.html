@@ -696,6 +696,8 @@
 .scarlet-caption{width:100%;min-height:78px;margin:0 0 8px;padding:10px 12px;border:1px solid #3f3f49;border-radius:12px;background:rgba(255,255,255,.045);color:#f4eef1;font-size:.92rem;line-height:1.4;text-align:center;display:flex;align-items:center;justify-content:center}
 .caller-image-wrap.speaking{animation:scarletPulse 1.1s ease-in-out infinite}
 @keyframes scarletPulse{0%,100%{box-shadow:0 0 0 9px rgba(143,34,68,.16)}50%{box-shadow:0 0 0 16px rgba(143,34,68,.30)}}
+
+#ready-for-scarlet{display:none!important}
 </style>
 </head>
 <body>
@@ -1156,8 +1158,11 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
 
   const scripts=[
     {
-      before:[["Jennifer...",700],["Before I continue...",650],["Put me on speaker.",0]],
+      before:[],
       after:[
+        ["Minion Jennifer...",500],
+        ["Nice to see you have moved up in the rankings.",450],
+        ["There are so many of you.",450],
         ["Well hello, Minions!",400],
         ["I hope you are enjoying your beer so far.",400],
         ["It's me... Scarlet Overkill.",400],
@@ -1174,7 +1179,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
       ]
     },
     {
-      before:[["Jennifer...",450],["Put me on speaker.",0]],
+      before:[],
       after:[
         ["Hello again!",300],
         ["Did you miss me?",300],
@@ -1187,8 +1192,9 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
       ]
     },
     {
-      before:[["Jennifer...",450],["Put me on speaker.",0]],
+      before:[],
       after:[
+        ["Minion Jennifer...",350],
         ["Honestly...",350],
         ["How do I keep doing this?",400],
         ["Ha... ha... ha...",400],
@@ -1201,8 +1207,9 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
       ]
     },
     {
-      before:[["Jennifer...",450],["Put me on speaker.",0]],
+      before:[],
       after:[
+        ["Minion Jennifer...",350],
         ["Gru really should update his security.",400],
         ["Breaking in is becoming far too easy.",450],
         ["I've found another Minion.",500],
@@ -1214,8 +1221,9 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
       ]
     },
     {
-      before:[["Jennifer...",450],["Put me on speaker.",0]],
+      before:[],
       after:[
+        ["Minion Jennifer...",350],
         ["Don't worry, Minions.",300],
         ["Every single one of you will be targeted at some point.",500],
         ["Today's lucky contestant is...",1500],
@@ -1307,14 +1315,15 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   }
 
   p2Test?.addEventListener("click",()=>{p2Caption.textContent="Incoming secure transmission...";p2StartRing()});
-  p2Answer?.addEventListener("click",()=>{p2StopRing();setTimeout(()=>p2Play(p2Script().before,false),500)});
+  p2Answer?.addEventListener("click",()=>{p2StopRing();p2Caption.textContent="Tap Speaker Enabled to begin the call.";});
   p2Decline?.addEventListener("click",()=>{p2StopAll();setTimeout(p2StartRing,1900)});
   p2End?.addEventListener("click",p2StopAll);
   p2Speaker?.addEventListener("click",()=>{
     setTimeout(()=>{
       if(p2Speaker.classList.contains("active")){
-        p2Caption.textContent='Speaker enabled. Tap "Continue Call" when everyone is ready.';
-        p2Ready.textContent="Continue Call";
+        p2Caption.textContent="Speaker enabled. Scarlet is connecting...";
+        p2Ready.style.display="none";
+        setTimeout(()=>p2Play(p2Script().after,true),450);
       }
     },0);
   });
