@@ -698,6 +698,19 @@
 @keyframes scarletPulse{0%,100%{box-shadow:0 0 0 9px rgba(143,34,68,.16)}50%{box-shadow:0 0 0 16px rgba(143,34,68,.30)}}
 
 #ready-for-scarlet{display:none!important}
+
+.scarlet-target-test{margin:10px 0 18px;padding:12px;border:1px dashed #8f2244;background:rgba(143,34,68,.06)}
+.scarlet-target-test label{display:block;margin-bottom:7px;font-size:.7rem;font-weight:900;letter-spacing:.11em;text-transform:uppercase}
+.scarlet-target-test input{width:100%;min-height:42px;padding:9px 11px;border:1px solid #aaa49a;background:#fff;color:#161616;font-size:1rem}
+.target-transmission-overlay{position:fixed;inset:0;z-index:10020;display:grid;place-items:center;padding:20px;background:rgba(6,6,9,.96)}
+.target-transmission-overlay.hidden{display:none!important}
+.target-transmission-card{width:min(100%,420px);padding:24px;border:2px solid #2d2d33;background:#f6f3ec;color:#171717;text-align:center;box-shadow:10px 10px 0 rgba(255,255,255,.08)}
+.target-secure-line{color:#8f2244;font-size:.66rem;font-weight:950;letter-spacing:.14em;text-transform:uppercase}
+.target-transmission-card h2{margin:20px 0 8px;font-size:.82rem;letter-spacing:.15em;text-transform:uppercase}
+.selected-target-name{margin:0 0 20px;padding:16px 12px;border-top:2px solid #161616;border-bottom:2px solid #161616;font-size:clamp(1.8rem,8vw,2.6rem);font-weight:950;letter-spacing:.06em;overflow-wrap:anywhere;text-transform:uppercase}
+.target-transmission-card p{line-height:1.5}
+#acknowledge-target{width:100%;min-height:50px;margin-top:12px;border:0;background:#161616;color:#fff;font-weight:950;letter-spacing:.12em;text-transform:uppercase}
+.target-trigger-status{min-height:1.4em;margin:10px 0 0!important;color:#8f2244;font-size:.78rem;font-weight:800}
 </style>
 </head>
 <body>
@@ -912,7 +925,10 @@
 </div>
 </div></div>
 </div>
-<button class="scarlet-test-btn" id="test-scarlet-call" type="button">Test Scarlet Call</button><p id="audio-upgrade-note" style="font-size:.72rem;color:#6a6863;text-align:center;margin:8px 0 0;">Production sound test: ringtone, connection cues, and speaker-volume transition enabled.</p><button class="switch-minion-btn" id="switch-minion-btn" type="button">
+<button class="scarlet-test-btn" id="test-scarlet-call" type="button">Test Scarlet Call</button><div class="scarlet-target-test">
+<label for="scarlet-test-target">Test selected Minion</label>
+<input id="scarlet-test-target" maxlength="40" type="text" value="Kevin"/>
+</div><p id="audio-upgrade-note" style="font-size:.72rem;color:#6a6863;text-align:center;margin:8px 0 0;">Production sound test: ringtone, connection cues, and speaker-volume transition enabled.</p><button class="switch-minion-btn" id="switch-minion-btn" type="button">
           Switch Minion
         </button><p class="footer">
 
@@ -946,6 +962,15 @@
 <button class="end-call" id="end-call" type="button">End Call</button>
 </div>
 </div>
+</div><div aria-hidden="true" class="target-transmission-overlay hidden" id="target-transmission-overlay">
+<section aria-labelledby="target-transmission-title" aria-modal="true" class="target-transmission-card" role="dialog">
+<div class="target-secure-line">GRU INDUSTRIES · SECURE TRANSMISSION</div>
+<h2 id="target-transmission-title">Next Target</h2>
+<div class="selected-target-name" id="selected-target-name">KEVIN</div>
+<p>Notify this Minion to check their mission board immediately.</p>
+<button id="acknowledge-target" type="button">Understood</button>
+<p aria-live="polite" class="target-trigger-status" id="target-trigger-status"></p>
+</section>
 </div><script>
     const loginScreen = document.getElementById("login-screen");
     const transitionScreen = document.getElementById("transition-screen");
@@ -1142,309 +1167,129 @@ if(speakerToggle)speakerToggle.addEventListener("click",toggleSpeaker);
 if(readyForScarletButton)readyForScarletButton.addEventListener("click",markReady);
 if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
 
-
-/* Scarlet Call Phase 2: browser voice + generated ringtone */
+/* ===== Scarlet recorded playlist + host target transmission ===== */
 (function(){
-  const p2Caption=document.getElementById("scarlet-caption");
-  const p2Test=document.getElementById("test-scarlet-call");
-  const p2Answer=document.getElementById("answer-call");
-  const p2Decline=document.getElementById("decline-call");
-  const p2End=document.getElementById("end-call");
-  const p2Speaker=document.getElementById("speaker-toggle");
-  const p2Ready=document.getElementById("ready-for-scarlet");
-  const p2ActivePhoto=document.querySelector("#active-call-view .caller-image-wrap");
-  let p2Ctx=null,p2RingTimer=null,p2Busy=false;
-  let p2Sequence=Number(localStorage.getItem("scarletCallSequence")||"0");
-
-  const scripts=[
-    {
-      before:[],
-      after:[
-        ["Minion Jennifer...",500],
-        ["Nice to see you have moved up in the rankings.",450],
-        ["There are so many of you.",450],
-        ["Well hello, Minions!",400],
-        ["I hope you are enjoying your beer so far.",400],
-        ["It's me... Scarlet Overkill.",400],
-        ["I'm here to kill the buzz.",300],
-        ["You get the joke?",300],
-        ["Anywho...",300],
-        ["I've selected my first victim.",650],
-        ["Their name is...",1500],
-        ["Kevin",550],
-        ["Open your mission page.",300],
-        ["Take a photo of the group and that hijack screen will go away.",400],
-        ["You'll hear from me again very soon.",300],
-        ["Now... back to ruining Gru's day.",0]
-      ]
-    },
-    {
-      before:[],
-      after:[
-        ["Hello again!",300],
-        ["Did you miss me?",300],
-        ["I'm back, just as promised.",400],
-        ["I've located another Minion.",500],
-        ["Their name is...",1500],
-        ["Kevin",500],
-        ["Go check your phone and take a group photo now.",400],
-        ["Try not to miss me too much.",0]
-      ]
-    },
-    {
-      before:[],
-      after:[
-        ["Minion Jennifer...",350],
-        ["Honestly...",350],
-        ["How do I keep doing this?",400],
-        ["Ha... ha... ha...",400],
-        ["Is Gru taking a nap?",400],
-        ["Either way, I've found another Minion.",500],
-        ["Their name is...",1500],
-        ["Kevin",500],
-        ["Time to interrupt their mission.",300],
-        ["Gru should really change his passwords.",0]
-      ]
-    },
-    {
-      before:[],
-      after:[
-        ["Minion Jennifer...",350],
-        ["Gru really should update his security.",400],
-        ["Breaking in is becoming far too easy.",450],
-        ["I've found another Minion.",500],
-        ["Their name is...",1500],
-        ["Kevin",500],
-        ["Tell them to check their phone.",300],
-        ["I have another assignment waiting.",300],
-        ["Scarlet Overkill... out.",0]
-      ]
-    },
-    {
-      before:[],
-      after:[
-        ["Minion Jennifer...",350],
-        ["Don't worry, Minions.",300],
-        ["Every single one of you will be targeted at some point.",500],
-        ["Today's lucky contestant is...",1500],
-        ["Kevin",500],
-        ["Better check your mission page.",300],
-        ["Don't go anywhere. I'll be calling again.",0]
-      ]
-    }
+  const callFiles=[
+    "audio/call-1.mp3","audio/call-2.mp3","audio/call-3.mp3","audio/call-4.mp3",
+    "audio/call-5.mp3","audio/call-6.mp3","audio/call-7.mp3","audio/call-8.mp3"
   ];
 
-  function p2Script(){
-    if(p2Sequence===0)return scripts[0];
-    return scripts[1+((p2Sequence-1)%4)];
-  }
+  const ringtone=new Audio("audio/scarlet-ringtone-full.mp3");
+  const connection=new Audio("audio/connection.wav");
+  const disconnect=new Audio("audio/disconnect.wav");
+  const speakerCue=new Audio("audio/speaker-on.wav");
 
-  function p2Voice(){
-    const voices=speechSynthesis.getVoices();
-    return voices.find(v=>/samantha|victoria|ava|serena/i.test(v.name))
-      || voices.find(v=>/^en/i.test(v.lang))
-      || voices[0]||null;
-  }
+  ringtone.loop=true; ringtone.volume=1;
+  connection.volume=.75; disconnect.volume=.75; speakerCue.volume=.75;
 
-  function p2Speak(text){
-    return new Promise(resolve=>{
-      if(!("speechSynthesis" in window)){
-        p2Caption.textContent=text;
-        setTimeout(resolve,Math.max(700,text.length*45));
-        return;
-      }
-      const u=new SpeechSynthesisUtterance(text);
-      const v=p2Voice(); if(v)u.voice=v;
-      u.rate=.91;u.pitch=.96;u.volume=(window.__scarletSpeechVolume ?? 0.34);
-      u.onstart=()=>{p2Caption.textContent=text;p2ActivePhoto?.classList.add("speaking")};
-      u.onend=()=>{p2ActivePhoto?.classList.remove("speaking");resolve()};
-      u.onerror=()=>{p2ActivePhoto?.classList.remove("speaking");resolve()};
-      speechSynthesis.cancel();speechSynthesis.speak(u);
-    });
-  }
+  const testButton=document.getElementById("test-scarlet-call");
+  const targetInput=document.getElementById("scarlet-test-target");
+  const answerButton=document.getElementById("answer-call");
+  const declineButton=document.getElementById("decline-call");
+  const speakerButton=document.getElementById("speaker-toggle");
+  const endButton=document.getElementById("end-call");
+  const caption=document.getElementById("scarlet-caption");
 
-  async function p2Play(lines,finish){
-    if(p2Busy)return;
-    p2Busy=true;
-    for(const [text,pause] of lines){
-      await p2Speak(text);
-      if(pause)await new Promise(r=>setTimeout(r,pause));
-    }
-    p2Busy=false;
-    if(finish){
-      p2Caption.textContent="Scarlet has ended the transmission.";
-      p2Sequence+=1;
-      localStorage.setItem("scarletCallSequence",String(p2Sequence));
-      setTimeout(()=>p2End?.click(),1500);
-    }else{
-      p2Caption.textContent='Enable speaker, then tap "Continue Call".';
-      if(p2Ready)p2Ready.textContent="Continue Call";
-    }
-  }
+  const transmissionOverlay=document.getElementById("target-transmission-overlay");
+  const selectedTargetName=document.getElementById("selected-target-name");
+  const acknowledgeTarget=document.getElementById("acknowledge-target");
+  const targetTriggerStatus=document.getElementById("target-trigger-status");
 
-  function p2Audio(){
-    if(!p2Ctx)p2Ctx=new (window.AudioContext||window.webkitAudioContext)();
-    if(p2Ctx.state==="suspended")p2Ctx.resume();
-  }
+  let currentCallAudio=null;
+  let currentTarget="Kevin";
+  let callStarted=false;
+  let sequence=Number(localStorage.getItem("scarletRecordedCallSequence_v1")||"0");
 
-  function p2Chime(){
-    p2Audio();
-    const now=p2Ctx.currentTime;
-    [659.25,523.25,783.99].forEach((f,i)=>{
-      const o=p2Ctx.createOscillator(),g=p2Ctx.createGain();
-      o.type="sine";o.frequency.value=f;
-      g.gain.setValueAtTime(.0001,now+i*.18);
-      g.gain.exponentialRampToValueAtTime(.18,now+i*.18+.02);
-      g.gain.exponentialRampToValueAtTime(.0001,now+i*.18+.16);
-      o.connect(g).connect(p2Ctx.destination);
-      o.start(now+i*.18);o.stop(now+i*.18+.18);
-    });
+  function safePlay(audio){
+    try{audio.currentTime=0;const p=audio.play();if(p&&p.catch)p.catch(()=>{});}catch(_){}
   }
-
-  function p2StartRing(){
-    p2StopRing();p2Chime();p2RingTimer=setInterval(p2Chime,2200);
+  function stopAudio(audio){
+    if(!audio)return;
+    try{audio.pause();audio.currentTime=0;}catch(_){}
   }
-  function p2StopRing(){
-    if(p2RingTimer){clearInterval(p2RingTimer);p2RingTimer=null}
+  function getCallIndex(){
+    if(sequence===0)return 0; // Call 1 once
+    return 1+((sequence-1)%(callFiles.length-1)); // Loop Calls 2-8
   }
-  function p2StopAll(){
-    p2StopRing();
-    if("speechSynthesis" in window)speechSynthesis.cancel();
-    p2Busy=false;
-    p2ActivePhoto?.classList.remove("speaking");
+  function showTransmission(){
+    selectedTargetName.textContent=currentTarget;
+    targetTriggerStatus.textContent="";
+    acknowledgeTarget.disabled=false;
+    transmissionOverlay.classList.remove("hidden");
+    transmissionOverlay.setAttribute("aria-hidden","false");
   }
-
-  p2Test?.addEventListener("click",()=>{p2Caption.textContent="Incoming secure transmission...";p2StartRing()});
-  p2Answer?.addEventListener("click",()=>{p2StopRing();p2Caption.textContent="Tap Speaker Enabled to begin the call.";});
-  p2Decline?.addEventListener("click",()=>{p2StopAll();setTimeout(p2StartRing,1900)});
-  p2End?.addEventListener("click",p2StopAll);
-  p2Speaker?.addEventListener("click",()=>{
+  function finishCall(){
+    stopAudio(currentCallAudio);
+    currentCallAudio=null;
+    callStarted=false;
+    safePlay(disconnect);
+    sequence+=1;
+    localStorage.setItem("scarletRecordedCallSequence_v1",String(sequence));
     setTimeout(()=>{
-      if(p2Speaker.classList.contains("active")){
-        p2Caption.textContent="Speaker enabled. Scarlet is connecting...";
-        p2Ready.style.display="none";
-        setTimeout(()=>p2Play(p2Script().after,true),450);
-      }
-    },0);
+      closeScarletCall();
+      showTransmission();
+    },700);
+  }
+  function startRecordedCall(){
+    if(callStarted)return;
+    callStarted=true;
+    const index=getCallIndex();
+    currentCallAudio=new Audio(callFiles[index]);
+    currentCallAudio.volume=1;
+    caption.textContent=`Scarlet transmission ${index+1} connected.`;
+    document.querySelector("#active-call-view .caller-image-wrap")?.classList.add("speaking");
+    currentCallAudio.addEventListener("ended",()=>{
+      document.querySelector("#active-call-view .caller-image-wrap")?.classList.remove("speaking");
+      finishCall();
+    },{once:true});
+    currentCallAudio.addEventListener("error",()=>{
+      caption.textContent="Unable to load Scarlet's recording.";
+      callStarted=false;
+    },{once:true});
+    safePlay(currentCallAudio);
+  }
+
+  testButton?.addEventListener("click",()=>{
+    currentTarget=(targetInput?.value||"Kevin").trim()||"Kevin";
+    stopAudio(ringtone);
+    ringtone.play().catch(()=>{});
+  },true);
+
+  answerButton?.addEventListener("click",()=>{
+    stopAudio(ringtone);
+    safePlay(connection);
+    caption.textContent="Tap Speaker Enabled to begin the call.";
+  },true);
+
+  declineButton?.addEventListener("click",()=>{
+    stopAudio(ringtone);
+  },true);
+
+  speakerButton?.addEventListener("click",()=>{
+    const willEnable=!speakerButton.classList.contains("active");
+    if(willEnable){
+      safePlay(speakerCue);
+      setTimeout(startRecordedCall,350);
+    }
+  },true);
+
+  endButton?.addEventListener("click",()=>{
+    stopAudio(ringtone);
+    stopAudio(currentCallAudio);
+    currentCallAudio=null;
+    callStarted=false;
+  },true);
+
+  acknowledgeTarget?.addEventListener("click",()=>{
+    acknowledgeTarget.disabled=true;
+    targetTriggerStatus.textContent=`Hijack activation queued for ${currentTarget}.`;
+    localStorage.setItem("scarletPendingHijackTarget",currentTarget);
+    localStorage.setItem("scarletPendingHijackTimestamp",String(Date.now()));
+    setTimeout(()=>{
+      transmissionOverlay.classList.add("hidden");
+      transmissionOverlay.setAttribute("aria-hidden","true");
+    },900);
   });
-  p2Ready?.addEventListener("click",()=>p2Play(p2Script().after,true));
-
-  if("speechSynthesis" in window){
-    speechSynthesis.getVoices();
-    speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();
-  }
-})();
-
-
-/* ===== Scarlet production-audio upgrade ===== */
-(function () {
-  const AUDIO_BASE = "audio/";
-  const assets = {
-    ringtone: new Audio(AUDIO_BASE + "scarlet-ringtone.wav"),
-    connect: new Audio(AUDIO_BASE + "connection.wav"),
-    disconnect: new Audio(AUDIO_BASE + "disconnect.wav"),
-    speaker: new Audio(AUDIO_BASE + "speaker-on.wav")
-  };
-
-  assets.ringtone.loop = true;
-  assets.ringtone.volume = 1.0;
-  assets.connect.volume = 0.72;
-  assets.disconnect.volume = 0.72;
-  assets.speaker.volume = 0.72;
-
-  let productionCallAudio = null;
-  let speakerEnabledForCall = false;
-
-  function safePlay(audio) {
-    try {
-      audio.currentTime = 0;
-      const p = audio.play();
-      if (p && p.catch) p.catch(() => {});
-    } catch (_) {}
-  }
-
-  function stopAudio(audio) {
-    try {
-      audio.pause();
-      audio.currentTime = 0;
-    } catch (_) {}
-  }
-
-  function setCallOutputMode(isSpeaker) {
-    speakerEnabledForCall = isSpeaker;
-
-    // When prerecorded AI calls are added, the pre-speaker lines play softer,
-    // then the full message becomes louder and fuller after Speaker is enabled.
-    if (productionCallAudio) {
-      productionCallAudio.volume = isSpeaker ? 1.0 : 0.34;
-    }
-
-    // Browser speech fallback: use volume changes to imitate earpiece vs speaker.
-    window.__scarletSpeechVolume = isSpeaker ? 1.0 : 0.34;
-  }
-
-  // Hook into the existing call controls without replacing their logic.
-  const testButton = document.getElementById("test-scarlet-call");
-  const answerButton = document.getElementById("answer-call");
-  const declineButton = document.getElementById("decline-call");
-  const endButton = document.getElementById("end-call");
-  const speakerButton = document.getElementById("speaker-toggle");
-
-  testButton?.addEventListener("click", () => {
-    speakerEnabledForCall = false;
-    setCallOutputMode(false);
-    safePlay(assets.ringtone);
-  }, true);
-
-  answerButton?.addEventListener("click", () => {
-    stopAudio(assets.ringtone);
-    safePlay(assets.connect);
-    setCallOutputMode(false);
-  }, true);
-
-  declineButton?.addEventListener("click", () => {
-    stopAudio(assets.ringtone);
-  }, true);
-
-  speakerButton?.addEventListener("click", () => {
-    const willEnable = !speakerButton.classList.contains("active");
-    if (willEnable) {
-      safePlay(assets.speaker);
-      setCallOutputMode(true);
-    } else {
-      setCallOutputMode(false);
-    }
-  }, true);
-
-  endButton?.addEventListener("click", () => {
-    stopAudio(assets.ringtone);
-    if (productionCallAudio) stopAudio(productionCallAudio);
-    safePlay(assets.disconnect);
-  }, true);
-
-  // Make the existing browser-voice fallback respect earpiece/speaker volume.
-  const NativeUtterance = window.SpeechSynthesisUtterance;
-  if (NativeUtterance) {
-    window.SpeechSynthesisUtterance = function(text) {
-      const utterance = new NativeUtterance(text);
-      utterance.volume = window.__scarletSpeechVolume ?? 0.34;
-      return utterance;
-    };
-    window.SpeechSynthesisUtterance.prototype = NativeUtterance.prototype;
-  }
-
-  /*
-    Future high-quality AI recordings:
-      audio/call-1.mp3
-      audio/call-2.mp3
-      audio/call-3.mp3
-      audio/call-4.mp3
-      audio/call-5.mp3
-
-    The backend will generate personalized full-call files so Scarlet and the
-    selected Minion's name use one consistent voice. This page is now prepared
-    for that swap without changing the call interface.
-  */
 })();
 </script>
 </body>
