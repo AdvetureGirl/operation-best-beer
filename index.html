@@ -835,13 +835,69 @@
   .scarlet-greeting{margin-top:24px}
   .scarlet-objective{margin:26px 0 20px}
 }
+
+/* ===== Hidden host mode ===== */
+.gru-host-trigger{user-select:none;-webkit-user-select:none}
+.host-overlay{
+  position:fixed;inset:0;z-index:10060;display:grid;place-items:center;
+  padding:20px;background:rgba(5,7,10,.94)
+}
+.host-overlay.hidden,.host-control-panel.hidden{display:none!important}
+.host-dialog{
+  width:min(100%,390px);padding:26px;border:2px solid #202328;
+  background:#f5f2eb;color:#171717;box-shadow:10px 10px 0 rgba(255,255,255,.08)
+}
+.host-kicker{color:#b3212d;font-size:.66rem;font-weight:950;letter-spacing:.15em;text-transform:uppercase}
+.host-dialog h2,.host-control-panel h2{margin:8px 0 20px;font-size:1.25rem}
+.host-dialog label,.host-field-label{display:block;margin:14px 0 7px;font-size:.7rem;font-weight:950;letter-spacing:.11em;text-transform:uppercase}
+.host-dialog input,.host-select,.host-add-row input{
+  width:100%;min-height:44px;padding:10px 11px;border:1px solid #aaa49a;background:#fff;color:#171717;font-size:1rem
+}
+.host-dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+.host-dialog-actions button,.host-actions button,.host-add-row button{
+  min-height:46px;border:0;background:#171717;color:#fff;font-weight:900;letter-spacing:.08em;text-transform:uppercase
+}
+.host-secondary{background:#d8d4cc!important;color:#171717!important}
+.host-danger{background:#8f1837!important}
+.host-auth-message{min-height:1.3em;margin:10px 0 0;color:#a31932;font-size:.82rem;font-weight:800}
+.host-control-panel{
+  margin:18px 0;padding:20px;border:2px solid #171717;background:#f4f1ea;color:#171717;box-shadow:7px 7px 0 rgba(0,0,0,.12)
+}
+.host-panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.operation-status-badge{
+  padding:7px 10px;border:1px solid #70746f;background:#e5e8df;
+  font-size:.65rem;font-weight:950;letter-spacing:.09em;text-transform:uppercase
+}
+.operation-status-badge.active{background:#dcebd9;border-color:#477847;color:#234f23}
+.operation-status-badge.paused{background:#f4e8c9;border-color:#a47c1d;color:#6b4c06}
+.operation-status-badge.ended{background:#ead7dc;border-color:#8f1837;color:#6f1028}
+.host-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 18px}
+.host-stats div{padding:13px;border:1px solid #c4bfb5;background:#fff}
+.host-stats strong{display:block;font-size:1.55rem}
+.host-stats span{display:block;margin-top:4px;font-size:.68rem;font-weight:850;letter-spacing:.06em;text-transform:uppercase}
+.host-select{margin-bottom:16px}
+.host-current-target{display:flex;justify-content:space-between;gap:14px;padding:14px;border-top:1px solid #bbb5aa;border-bottom:1px solid #bbb5aa}
+.host-current-target span{font-size:.68rem;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+.host-current-target strong{color:#8f1837;text-transform:uppercase}
+.host-actions{display:grid;grid-template-columns:1fr;gap:9px;margin-top:16px}
+.host-test-guests{margin-top:18px;padding-top:14px;border-top:1px dashed #999288}
+.host-test-guests summary{cursor:pointer;font-weight:900}
+.host-test-guests p{font-size:.8rem;color:#5e5a54}
+.host-add-row{display:grid;grid-template-columns:1fr auto;gap:8px}
+.host-add-row button{padding:0 15px}
+.test-guest-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+.test-guest-chip{padding:7px 9px;border:1px solid #aaa49a;background:#fff;font-size:.78rem}
+.test-guest-chip.completed{text-decoration:line-through;opacity:.55}
+.test-guest-chip.reserved{border-color:#8f1837;color:#8f1837;font-weight:900}
+.host-link-button{width:100%;min-height:42px;margin-top:18px;border:1px solid #777;background:transparent;color:#171717;font-weight:900}
+.host-access-footer{text-align:center;margin:10px 0 0!important;font-size:.68rem;color:#6b6760;text-transform:uppercase;letter-spacing:.1em}
 </style>
 </head>
 <body>
 <!-- LOGIN -->
 <main aria-labelledby="page-title" class="screen" id="login-screen">
 <div class="classification">TOP SECRET</div>
-<h1 class="brand" id="page-title">Gru Industries</h1>
+<h1 class="brand gru-host-trigger" id="gru-host-trigger" title="Gru Industries">Gru Industries</h1>
 <p class="division">Field Operations Portal</p>
 <p class="festival-title">5th <em>(fake but real)</em> Annual Beer Walk Festival</p>
 <div class="rule"></div>
@@ -1049,7 +1105,53 @@
 </div>
 </div></div>
 </div>
-<button class="scarlet-test-btn" id="test-scarlet-call" type="button">Test Scarlet Call</button><div class="scarlet-target-test">
+<section class="host-control-panel hidden" id="host-control-panel">
+<div class="host-panel-heading">
+<div>
+<div class="host-kicker">HOST MODE</div>
+<h2>Host Control Panel</h2>
+</div>
+<span class="operation-status-badge" id="operation-status-badge">Ready</span>
+</div>
+<div class="host-stats">
+<div><strong id="registered-count">0</strong><span>Registered Minions</span></div>
+<div><strong id="remaining-count">0</strong><span>Remaining Targets</span></div>
+<div><strong id="completed-count">0</strong><span>Completed Missions</span></div>
+<div><strong id="photos-count">0</strong><span>Photos Collected</span></div>
+</div>
+<label class="host-field-label" for="current-stop-select">Current Stop</label>
+<select class="host-select" id="current-stop-select">
+<option>ISM Brewing &amp; Kitchen</option>
+<option>The 4th Horseman</option>
+<option>Altar Society Brewing</option>
+<option>Beachwood Blendery</option>
+<option>V Room</option>
+<option>The Stache Bar</option>
+<option>Everywhere Brewing</option>
+</select>
+<div class="host-current-target">
+<span>Reserved Target</span>
+<strong id="reserved-target-name">None</strong>
+</div>
+<div class="host-actions">
+<button id="start-operation" type="button">Start Operation</button>
+<button id="host-next-call" type="button">Next Scarlet Call</button>
+<button class="host-secondary" id="pause-operation" type="button">Pause Operation</button>
+<button class="host-secondary" id="release-target" type="button">Release Target</button>
+<button class="host-danger" id="end-operation" type="button">End Operation</button>
+</div>
+<details class="host-test-guests">
+<summary>Local Test Guest List</summary>
+<p>Add names here to simulate the future live database.</p>
+<div class="host-add-row">
+<input id="test-guest-name" maxlength="40" placeholder="Guest name" type="text"/>
+<button id="add-test-guest" type="button">Add</button>
+</div>
+<div class="test-guest-list" id="test-guest-list"></div>
+</details>
+<button class="host-link-button" id="exit-host-mode" type="button">Exit Host Mode</button>
+<p class="host-access-footer">Access Level: Commander</p>
+</section><button class="scarlet-test-btn" id="test-scarlet-call" type="button">Test Scarlet Call</button><div class="scarlet-target-test">
 <label for="scarlet-test-target">Test selected Minion</label>
 <input id="scarlet-test-target" maxlength="40" type="text" value="Kevin"/>
 </div><p id="audio-upgrade-note" style="font-size:.72rem;color:#6a6863;text-align:center;margin:8px 0 0;">Production sound test: ringtone, connection cues, and speaker-volume transition enabled.</p><button class="switch-minion-btn" id="switch-minion-btn" type="button">
@@ -1115,6 +1217,18 @@
 <button class="restore-mission hidden" id="restore-mission" type="button">
       Restore Mission
     </button>
+</section>
+</div><div aria-hidden="true" class="host-overlay hidden" id="host-auth-overlay">
+<section aria-labelledby="host-auth-title" aria-modal="true" class="host-dialog" role="dialog">
+<div class="host-kicker">GRU INDUSTRIES</div>
+<h2 id="host-auth-title">Host Authentication</h2>
+<label for="host-code-input">Access Code</label>
+<input autocomplete="off" id="host-code-input" maxlength="30" type="password"/>
+<p aria-live="polite" class="host-auth-message" id="host-auth-message"></p>
+<div class="host-dialog-actions">
+<button class="host-secondary" id="cancel-host-auth" type="button">Cancel</button>
+<button id="verify-host-auth" type="button">Verify</button>
+</div>
 </section>
 </div><script>
     const loginScreen = document.getElementById("login-screen");
@@ -1512,6 +1626,218 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
     // Briefly return to the normal Gru dashboard.
     window.scrollTo({top:0,behavior:"smooth"});
   });
+})();
+
+
+/* ===== Hidden host mode local prototype ===== */
+(function(){
+  const HOST_CODE="Dream";
+  const trigger=document.getElementById("gru-host-trigger");
+  const authOverlay=document.getElementById("host-auth-overlay");
+  const codeInput=document.getElementById("host-code-input");
+  const authMessage=document.getElementById("host-auth-message");
+  const cancelAuth=document.getElementById("cancel-host-auth");
+  const verifyAuth=document.getElementById("verify-host-auth");
+  const panel=document.getElementById("host-control-panel");
+  const exitHost=document.getElementById("exit-host-mode");
+
+  const statusBadge=document.getElementById("operation-status-badge");
+  const registeredCount=document.getElementById("registered-count");
+  const remainingCount=document.getElementById("remaining-count");
+  const completedCount=document.getElementById("completed-count");
+  const photosCount=document.getElementById("photos-count");
+  const reservedTargetName=document.getElementById("reserved-target-name");
+  const currentStop=document.getElementById("current-stop-select");
+
+  const startOperation=document.getElementById("start-operation");
+  const nextCall=document.getElementById("host-next-call");
+  const pauseOperation=document.getElementById("pause-operation");
+  const releaseTarget=document.getElementById("release-target");
+  const endOperation=document.getElementById("end-operation");
+
+  const guestInput=document.getElementById("test-guest-name");
+  const addGuest=document.getElementById("add-test-guest");
+  const guestList=document.getElementById("test-guest-list");
+  const testTargetInput=document.getElementById("scarlet-test-target");
+  const testCallButton=document.getElementById("test-scarlet-call");
+
+  let tapCount=0,tapTimer=null;
+  let operationStatus=localStorage.getItem("gruOperationStatus")||"ready";
+  let guests=JSON.parse(localStorage.getItem("gruTestGuests")||"[]");
+  let reserved=localStorage.getItem("gruReservedTarget")||"";
+
+  function save(){
+    localStorage.setItem("gruOperationStatus",operationStatus);
+    localStorage.setItem("gruTestGuests",JSON.stringify(guests));
+    reserved ? localStorage.setItem("gruReservedTarget",reserved) : localStorage.removeItem("gruReservedTarget");
+    localStorage.setItem("gruCurrentStop",currentStop.value);
+  }
+  function eligibleGuests(){
+    return guests.filter(g=>!g.completed && g.name!==reserved);
+  }
+  function updatePanel(){
+    const completed=guests.filter(g=>g.completed).length;
+    registeredCount.textContent=guests.length;
+    remainingCount.textContent=guests.length-completed;
+    completedCount.textContent=completed;
+    const prototypePhotos=JSON.parse(localStorage.getItem("scarletPrototypePhotos")||"[]");
+    photosCount.textContent=prototypePhotos.length;
+    reservedTargetName.textContent=reserved||"None";
+
+    statusBadge.className="operation-status-badge";
+    if(operationStatus==="active"){statusBadge.textContent="Active";statusBadge.classList.add("active")}
+    else if(operationStatus==="paused"){statusBadge.textContent="Paused";statusBadge.classList.add("paused")}
+    else if(operationStatus==="ended"){statusBadge.textContent="Ended";statusBadge.classList.add("ended")}
+    else statusBadge.textContent="Ready";
+
+    guestList.innerHTML="";
+    guests.forEach(g=>{
+      const chip=document.createElement("span");
+      chip.className="test-guest-chip";
+      if(g.completed)chip.classList.add("completed");
+      if(g.name===reserved)chip.classList.add("reserved");
+      chip.textContent=g.name;
+      guestList.appendChild(chip);
+    });
+    save();
+  }
+  function showHost(){
+    panel.classList.remove("hidden");
+    localStorage.setItem("gruHostMode","true");
+    updatePanel();
+    panel.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+  function hideHost(){
+    panel.classList.add("hidden");
+    localStorage.removeItem("gruHostMode");
+  }
+  function showAuth(){
+    codeInput.value="";authMessage.textContent="";
+    authOverlay.classList.remove("hidden");
+    authOverlay.setAttribute("aria-hidden","false");
+    setTimeout(()=>codeInput.focus(),100);
+  }
+  function closeAuth(){
+    authOverlay.classList.add("hidden");
+    authOverlay.setAttribute("aria-hidden","true");
+  }
+  function verify(){
+    if(codeInput.value===HOST_CODE){
+      closeAuth();showHost();
+    }else{
+      authMessage.textContent="Access denied.";
+      codeInput.select();
+    }
+  }
+  function reserveRandom(){
+    const pool=eligibleGuests();
+    if(!pool.length){
+      reserved="";
+      updatePanel();
+      alert("No available Minions remain.");
+      return "";
+    }
+    reserved=pool[Math.floor(Math.random()*pool.length)].name;
+    updatePanel();
+    return reserved;
+  }
+
+  trigger?.addEventListener("click",()=>{
+    tapCount++;
+    clearTimeout(tapTimer);
+    tapTimer=setTimeout(()=>tapCount=0,1800);
+    if(tapCount>=5){tapCount=0;showAuth()}
+  });
+  cancelAuth?.addEventListener("click",closeAuth);
+  verifyAuth?.addEventListener("click",verify);
+  codeInput?.addEventListener("keydown",e=>{if(e.key==="Enter")verify()});
+  exitHost?.addEventListener("click",hideHost);
+
+  addGuest?.addEventListener("click",()=>{
+    const name=(guestInput.value||"").trim();
+    if(!name)return;
+    guests.push({name,completed:false});
+    guestInput.value="";
+    updatePanel();
+  });
+
+  startOperation?.addEventListener("click",()=>{
+    operationStatus="active";
+    reserved="";
+    guests=guests.map(g=>({...g,completed:false}));
+    localStorage.setItem("scarletRecordedCallSequence_v1","0");
+    localStorage.removeItem("scarletPendingHijackTarget");
+    localStorage.removeItem("scarletPendingHijackTimestamp");
+    updatePanel();
+  });
+
+  nextCall?.addEventListener("click",()=>{
+    if(operationStatus!=="active"){
+      alert("Start the operation first.");
+      return;
+    }
+    if(reserved){
+      alert(`${reserved} is already reserved. Complete or release that target first.`);
+      return;
+    }
+    const name=reserveRandom();
+    if(!name)return;
+    if(testTargetInput)testTargetInput.value=name;
+    testCallButton?.click();
+  });
+
+  pauseOperation?.addEventListener("click",()=>{
+    operationStatus=operationStatus==="paused"?"active":"paused";
+    pauseOperation.textContent=operationStatus==="paused"?"Resume Operation":"Pause Operation";
+    updatePanel();
+  });
+
+  releaseTarget?.addEventListener("click",()=>{
+    if(!reserved){
+      alert("No target is currently reserved.");
+      return;
+    }
+    reserved="";
+    localStorage.removeItem("scarletPendingHijackTarget");
+    localStorage.removeItem("scarletPendingHijackTimestamp");
+    updatePanel();
+  });
+
+  endOperation?.addEventListener("click",()=>{
+    if(!confirm("End Operation? Scarlet calls will stop and the Mission Debrief will become available later."))return;
+    operationStatus="ended";
+    reserved="";
+    updatePanel();
+  });
+
+  currentStop.value=localStorage.getItem("gruCurrentStop")||currentStop.value;
+  currentStop.addEventListener("change",save);
+
+  // When the local prototype photo is restored, mark the reserved guest complete.
+  document.getElementById("restore-mission")?.addEventListener("click",()=>{
+    if(reserved){
+      const guest=guests.find(g=>g.name===reserved);
+      if(guest)guest.completed=true;
+      reserved="";
+      setTimeout(updatePanel,100);
+    }
+  });
+
+  // Hide the raw test controls unless host mode is active.
+  function syncTestControls(){
+    const isHost=localStorage.getItem("gruHostMode")==="true";
+    if(testCallButton)testCallButton.style.display=isHost?"":"none";
+    const testPanel=document.querySelector(".scarlet-target-test");
+    if(testPanel)testPanel.style.display=isHost?"":"none";
+  }
+  const originalShowHost=showHost;
+  showHost=function(){originalShowHost();syncTestControls()};
+  const originalHideHost=hideHost;
+  hideHost=function(){originalHideHost();syncTestControls()};
+
+  if(localStorage.getItem("gruHostMode")==="true")showHost();
+  else syncTestControls();
+  updatePanel();
 })();
 </script>
 </body>
