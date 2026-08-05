@@ -3,17 +3,28 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Operation Best Beer — Deployment Test</title>
+  <title>Operation Best Beer — JavaScript Test</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <main class="card">
     <p class="eyebrow">GRU INDUSTRIES</p>
     <h1>Deployment Successful</h1>
-    <p>If you can see this page, GitHub Pages is correctly loading <strong>index.html</strong>, <strong>style.css</strong>, and <strong>script.js</strong>.</p>
+    <p>This version tests JavaScript directly inside the page.</p>
     <button id="test-button" type="button">Test JavaScript</button>
     <p id="status" aria-live="polite">Waiting for test.</p>
   </main>
-  <script src="script.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const button = document.getElementById("test-button");
+      const status = document.getElementById("status");
+
+      button.addEventListener("click", function () {
+        status.textContent = "JavaScript is working.";
+        button.textContent = "Test Passed";
+      });
+    });
+  </script>
 </body>
 </html>

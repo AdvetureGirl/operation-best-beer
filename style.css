@@ -34,4 +34,8 @@ button {
   font-weight: 900;
   cursor: pointer;
 }
+button:hover,
+button:focus {
+  background: #b3212d;
+}
 #status { margin-bottom: 0; font-weight: 700; }
