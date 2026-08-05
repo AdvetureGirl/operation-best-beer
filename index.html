@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Gru Industries | Operation: Best Beer</title>
+<style>
+    :root {
+      --bg: #ece9e2;
+      --ink: #161616;
+      --panel: #f8f6f1;
+      --red: #b3212d;
+      --muted: #6a6863;
+      --line: #232323;
+      --green: #1f6b42;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(rgba(255,255,255,.18), rgba(255,255,255,.18)),
+        repeating-linear-gradient(
+          0deg,
+          rgba(0,0,0,.018) 0,
+          rgba(0,0,0,.018) 1px,
+          transparent 1px,
+          transparent 4px
+        ),
+        var(--bg);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      padding: 20px;
+    }
+
+    .screen {
+      width: min(100%, 430px);
+      background: var(--panel);
+      border: 2px solid var(--line);
+      box-shadow: 10px 10px 0 rgba(0,0,0,.14);
+      padding: 28px 24px 22px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .screen::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 8px;
+      background: var(--red);
+    }
+
+    .hidden { display: none; }
+
+    .classification {
+      display: inline-block;
+      margin-bottom: 24px;
+      padding: 6px 10px 5px;
+      border: 2px solid var(--red);
+      color: var(--red);
+      font-size: .76rem;
+      font-weight: 900;
+      letter-spacing: .16em;
+      transform: rotate(-1.5deg);
+    }
+
+    .brand {
+      margin: 0;
+      font-size: clamp(1.6rem, 7vw, 2.25rem);
+      line-height: .95;
+      letter-spacing: .11em;
+      font-weight: 950;
+      text-transform: uppercase;
+    }
+
+    .division {
+      margin: 8px 0 10px;
+      color: var(--muted);
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .17em;
+      text-transform: uppercase;
+    }
+
+    .festival-title {
+      margin: 0 0 22px;
+      font-weight: 700;
+      font-size: .95rem;
+      line-height: 1.35;
+    }
+
+    .rule {
+      height: 2px;
+      background: var(--line);
+      margin: 0 0 24px;
+    }
+
+    .operation-label {
+      margin: 0 0 5px;
+      color: var(--muted);
+      font-size: .76rem;
+      font-weight: 800;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    .operation-name {
+      margin: 0;
+      font-size: clamp(2rem, 10vw, 3rem);
+      line-height: .95;
+      font-weight: 950;
+      text-transform: uppercase;
+    }
+
+    .zone {
+      margin: 14px 0 30px;
+      font-size: .95rem;
+      font-weight: 700;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: .78rem;
+      font-weight: 900;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    input {
+      width: 100%;
+      min-height: 50px;
+      border: 2px solid var(--line);
+      border-radius: 0;
+      background: white;
+      color: var(--ink);
+      font-size: 1.05rem;
+      padding: 12px 13px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--red);
+      box-shadow: 0 0 0 3px rgba(179,33,45,.14);
+    }
+
+    button {
+      width: 100%;
+      min-height: 52px;
+      margin-top: 14px;
+      border: 2px solid var(--line);
+      border-radius: 0;
+      background: var(--ink);
+      color: white;
+      font-size: .92rem;
+      font-weight: 900;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    button:hover, button:focus {
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    .footer {
+      margin: 24px 0 0;
+      padding-top: 16px;
+      border-top: 1px solid #aaa69d;
+      color: var(--muted);
+      text-align: center;
+      font-size: .68rem;
+      font-weight: 700;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      line-height: 1.6;
+    }
+
+    .status {
+      display: none;
+      margin-top: 14px;
+      padding: 10px;
+      background: #ece9e2;
+      border-left: 4px solid var(--red);
+      font-size: .84rem;
+      font-weight: 700;
+    }
+
+    /* Transition screen */
+    .transition-title {
+      margin: 12px 0 8px;
+      font-size: 1.55rem;
+      font-weight: 950;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .transition-name {
+      margin: 0 0 24px;
+      color: var(--muted);
+      font-size: .92rem;
+      font-weight: 700;
+    }
+
+    .progress-shell {
+      width: 100%;
+      height: 18px;
+      border: 2px solid var(--line);
+      background: white;
+      overflow: hidden;
+      margin: 20px 0 18px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: var(--red);
+      transition: width .55s ease;
+    }
+
+    .system-log {
+      min-height: 118px;
+      padding: 14px;
+      border: 1px solid #aaa69d;
+      background: #efede7;
+      font-family: "Courier New", monospace;
+      font-size: .8rem;
+      line-height: 1.55;
+    }
+
+    .system-line {
+      opacity: 0;
+      transform: translateY(4px);
+      animation: reveal .25s ease forwards;
+    }
+
+    @keyframes reveal {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Dashboard */
+    .dashboard-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .dashboard-title {
+      margin: 0;
+      font-size: 1.7rem;
+      line-height: 1;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    .active-badge {
+      flex: 0 0 auto;
+      padding: 7px 9px;
+      border: 2px solid var(--green);
+      color: var(--green);
+      font-size: .68rem;
+      font-weight: 900;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+
+    .welcome {
+      margin: 0 0 22px;
+      font-size: .94rem;
+      font-weight: 700;
+    }
+
+    .dashboard-card {
+      border: 2px solid var(--line);
+      padding: 16px;
+      margin-top: 14px;
+      background: white;
+    }
+
+    .dashboard-card h3 {
+      margin: 0 0 8px;
+      font-size: .78rem;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .dashboard-card p {
+      margin: 0;
+      line-height: 1.45;
+    }
+
+    .points-number {
+      font-size: 2.7rem;
+      line-height: 1;
+      font-weight: 950;
+      margin-top: 4px;
+    }
+
+    .placeholder {
+      color: var(--muted);
+      font-size: .88rem;
+    }
+
+    .collapsible-card {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .section-toggle {
+      width: 100%;
+      min-height: 54px;
+      margin: 0;
+      padding: 16px;
+      border: 0;
+      background: white;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      text-align: left;
+      font-size: .8rem;
+      font-weight: 900;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .section-toggle:hover,
+    .section-toggle:focus {
+      background: #efede7;
+      color: var(--ink);
+    }
+
+    .toggle-symbol {
+      font-size: 1.35rem;
+      line-height: 1;
+      color: var(--red);
+    }
+
+    .collapsible-content {
+      display: none;
+      border-top: 1px solid #c8c3b9;
+    }
+
+    .collapsible-content.open {
+      display: block;
+    }
+
+    .objective-list {
+      padding: 8px 14px 14px;
+    }
+
+    .objective-item {
+      display: grid;
+      grid-template-columns: 22px 1fr auto;
+      align-items: start;
+      gap: 10px;
+      margin: 0;
+      padding: 11px 0;
+      border-bottom: 1px solid #ddd8ce;
+      font-size: .86rem;
+      font-weight: 600;
+      letter-spacing: 0;
+      line-height: 1.35;
+      text-transform: none;
+      cursor: pointer;
+    }
+
+    .objective-item:last-child {
+      border-bottom: 0;
+    }
+
+    .objective-item input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      min-height: 0;
+      margin: 1px 0 0;
+      padding: 0;
+      border: 2px solid var(--line);
+      background: white;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .objective-item input[type="checkbox"]:checked {
+      background: var(--red);
+      border-color: var(--red);
+    }
+
+    .objective-item input[type="checkbox"]:checked::after {
+      content: "✓";
+      position: absolute;
+      inset: -3px 0 0 1px;
+      color: white;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .objective-item strong {
+      white-space: nowrap;
+      color: var(--red);
+      font-size: .82rem;
+    }
+
+
+    .villain-profile {
+      background:
+        repeating-linear-gradient(
+          0deg,
+          rgba(255,255,255,.02) 0,
+          rgba(255,255,255,.02) 1px,
+          transparent 1px,
+          transparent 4px
+        ),
+        #111;
+      color: #f4f1e9;
+      padding: 14px;
+    }
+
+    .villain-photo-wrap {
+      position: relative;
+      border: 2px solid #625f58;
+      background: #d8d3c9;
+      min-height: 220px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .villain-photo {
+      display: block;
+      width: 100%;
+      max-height: 340px;
+      object-fit: contain;
+      object-position: center top;
+      background: #000;
+    }
+
+    .confidential-stamp {
+      position: absolute;
+      z-index: 2;
+      top: 12px;
+      right: 10px;
+      padding: 5px 8px;
+      border: 3px solid #c43228;
+      color: #c43228;
+      background: rgba(17,17,17,.78);
+      font-size: .68rem;
+      font-weight: 950;
+      letter-spacing: .12em;
+      transform: rotate(-4deg);
+    }
+
+    .intel-block,
+    .warning-block {
+      border: 1px solid #4c4a45;
+      background: #181818;
+      padding: 14px;
+      margin-top: 12px;
+    }
+
+    .intel-block h3,
+    .warning-block h3 {
+      margin: 0 0 10px;
+      color: #d4aa24;
+      font-size: .78rem;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+
+    .intel-block ul {
+      margin: 0;
+      padding-left: 20px;
+      line-height: 1.55;
+      font-size: .88rem;
+    }
+
+    .intel-block li {
+      margin: 7px 0;
+    }
+
+    .intel-block li::marker {
+      color: #d4aa24;
+    }
+
+    .location-alert {
+      margin: 14px 0;
+      padding: 14px;
+      border: 2px solid #b3212d;
+      background: #171717;
+      text-align: center;
+    }
+
+    .location-label {
+      color: #dc493c;
+      font-size: .7rem;
+      font-weight: 950;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .location-name {
+      margin-top: 7px;
+      color: white;
+      font-size: 1.45rem;
+      font-weight: 950;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .warning-block p {
+      margin: 8px 0 0;
+      color: #f4f1e9;
+      font-size: .88rem;
+      line-height: 1.5;
+    }
+
+    .warning-block strong {
+      color: #d4aa24;
+    }
+
+    #villains-content > .dashboard-card {
+      background: #111;
+      border-color: #302f2c;
+    }
+
+    #villains-content > .dashboard-card > .section-toggle {
+      background: #151515;
+      color: #f4f1e9;
+    }
+
+    #villains-content > .dashboard-card > .section-toggle:hover,
+    #villains-content > .dashboard-card > .section-toggle:focus {
+      background: #222;
+      color: white;
+    }
+
+  
+    .switch-minion-btn {
+      width: 100%;
+      min-height: 46px;
+      margin: 18px 0 0;
+      border: 2px solid var(--line);
+      background: transparent;
+      color: var(--ink);
+      font-size: .78rem;
+      font-weight: 900;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .switch-minion-btn:hover,
+    .switch-minion-btn:focus {
+      background: #efede7;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+
+.scarlet-test-btn{width:100%;min-height:46px;margin:18px 0 0;border:2px solid #7a1530;background:#7a1530;color:#fff;font-size:.78rem;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+.scarlet-call-overlay{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:radial-gradient(circle at top,rgba(134,18,58,.35),transparent 45%),rgba(6,6,9,.97);padding:18px}
+.scarlet-call-overlay.hidden{display:none}.call-phone-shell{width:min(100%,430px);min-height:680px;border:2px solid #3b3b45;border-radius:30px;background:#0d0d12;color:#fff;box-shadow:0 24px 70px rgba(0,0,0,.55);overflow:hidden}
+.call-status-bar{display:flex;justify-content:space-between;gap:10px;padding:16px 18px 12px;border-bottom:1px solid #2e2e38;color:#c8c6cf;font-size:.58rem;font-weight:800;letter-spacing:.11em;text-transform:uppercase}
+.call-view{min-height:625px;display:flex;flex-direction:column;align-items:center;padding:40px 26px 28px;text-align:center}.caller-label{color:#c8c6cf;font-size:.84rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.caller-image-wrap{width:168px;height:168px;margin:28px 0 20px;border-radius:50%;overflow:hidden;border:4px solid #8f2244;box-shadow:0 0 0 9px rgba(143,34,68,.16);background:#19141b}
+.caller-image-wrap.active{width:132px;height:132px;margin-top:24px}.caller-image{width:100%;height:100%;object-fit:cover;object-position:65% 18%}.call-view h2{margin:0;font-size:1.8rem}
+.caller-subtext{margin:8px 0 0;color:#a8a5af}.call-actions{width:100%;display:flex;justify-content:space-around;gap:40px;margin-top:auto;padding-top:60px}
+.call-action{width:94px;min-height:94px;margin:0;border:0;border-radius:50%;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:.74rem;text-transform:none}
+.call-action.decline{background:#c53333}.call-action.answer{background:#2b9d55}.call-icon{font-size:1.4rem}.call-timer{margin:8px 0 28px;color:#c8c6cf;font-variant-numeric:tabular-nums;font-size:1.05rem}
+.speaker-toggle,.ready-button,.end-call{width:100%;min-height:50px;margin-top:12px;border-radius:12px}.speaker-toggle{margin-top:auto;background:#24242d;border-color:#3f3f49}.speaker-toggle.active{background:#8f2244;border-color:#8f2244}
+.ready-button{background:#f1ede5;color:#161616;border-color:#f1ede5}.ready-button:disabled{opacity:.38;cursor:not-allowed}.end-call{background:#c53333;border-color:#c53333}
+</style>
+</head>
+<body>
+<!-- LOGIN -->
+<main aria-labelledby="page-title" class="screen" id="login-screen">
+<div class="classification">TOP SECRET</div>
+<h1 class="brand" id="page-title">Gru Industries</h1>
+<p class="division">Field Operations Portal</p>
+<p class="festival-title">5th <em>(fake but real)</em> Annual Beer Walk Festival</p>
+<div class="rule"></div>
+<p class="operation-label">Operation</p>
+<h2 class="operation-name">Best Beer</h2>
+<p class="zone">Deployment Zone: Long Beach, CA</p>
+<form id="agent-form">
+<label for="agent-name">Enter Name Below</label>
+<input autocomplete="name" id="agent-name" name="agentName" placeholder="Enter your name" required="" type="text"/>
+<button type="submit">Enter Mission</button>
+<div class="status" id="status" role="status"></div>
+</form>
+<p class="footer">
+      GRU File #JJH-26-BEER<br/>
+      Authorized Minions Only
+    </p>
+</main>
+<!-- TRANSITION -->
+<section aria-live="polite" class="screen hidden" id="transition-screen">
+<div class="classification">SECURE CONNECTION</div>
+<h2 class="transition-title">Connecting to Gru Industries</h2>
+<p class="transition-name" id="transition-name"></p>
+<div aria-hidden="true" class="progress-shell">
+<div class="progress-bar" id="progress-bar"></div>
+</div>
+<div class="system-log" id="system-log"></div>
+<p class="footer">
+      GRU File #JJH-26-BEER<br/>
+      Do Not Close This Connection
+    </p>
+</section>
+<!-- DASHBOARD -->
+<section class="screen hidden" id="dashboard-screen">
+<div class="dashboard-header">
+<div>
+<p class="division" style="margin-top:0;">Gru Industries</p>
+<h2 class="dashboard-title">Mission Dashboard</h2>
+</div>
+<div class="active-badge">Mission Active</div>
+</div>
+<p class="welcome" id="welcome-message"></p>
+<div class="dashboard-card">
+<h3>Operation</h3>
+<p><strong>BEST BEER</strong><br/>Deployment Zone: Long Beach, CA</p>
+</div>
+<div class="dashboard-card">
+<h3>Mission Points</h3>
+<div class="points-number" id="mission-points">0</div>
+</div>
+<div class="dashboard-card collapsible-card">
+<button aria-controls="bonus-objectives-content" aria-expanded="false" class="section-toggle" type="button">
+<span>Bonus Objectives</span>
+<span class="toggle-symbol">+</span>
+</button>
+<div class="collapsible-content" id="bonus-objectives-content">
+<div class="objective-list">
+<label class="objective-item"><input data-points="2" type="checkbox"/><span>Confirm you understand the mission</span><strong>+2</strong></label>
+<label class="objective-item"><input data-points="3" type="checkbox"/><span>Take a photo with 3+ others</span><strong>+3</strong></label>
+<label class="objective-item"><input data-points="2" type="checkbox"/><span>Take a selfie and post it on social media</span><strong>+2</strong></label>
+<label class="objective-item"><input data-points="2" type="checkbox"/><span>Order the highest % alcohol beer</span><strong>+2</strong></label>
+<label class="objective-item"><input data-points="1" type="checkbox"/><span>Order something you normally wouldn't</span><strong>+1</strong></label>
+<label class="objective-item"><input data-points="1" type="checkbox"/><span>Drink some water</span><strong>+1</strong></label>
+<label class="objective-item"><input data-points="2" type="checkbox"/><span>Find someone with the same code word as you</span><strong>+2</strong></label>
+<label class="objective-item"><input data-points="2" type="checkbox"/><span>Give Jennifer (host) a compliment</span><strong>+2</strong></label>
+<label class="objective-item"><input data-points="4" type="checkbox"/><span>Chug a pint of beer</span><strong>+4</strong></label>
+<label class="objective-item"><input data-points="4" type="checkbox"/><span>Take a shot</span><strong>+4</strong></label>
+<label class="objective-item"><input data-points="2" type="checkbox"/><span>Post and tag the host about the event on social media</span><strong>+2</strong></label>
+<label class="objective-item"><input data-points="2" type="checkbox"/><span>Dance randomly for 10 seconds</span><strong>+2</strong></label>
+<label class="objective-item"><input data-points="3" type="checkbox"/><span>Whisper "banana" in someone's ear</span><strong>+3</strong></label>
+<label class="objective-item"><input data-points="2" type="checkbox"/><span>Hold hands with someone for 7 seconds</span><strong>+2</strong></label>
+<label class="objective-item"><input data-points="3" type="checkbox"/><span>Announce and share one random fact about yourself during lunch</span><strong>+3</strong></label>
+</div>
+</div>
+</div>
+<div class="dashboard-card collapsible-card">
+<button aria-controls="villains-content" aria-expanded="false" class="section-toggle" type="button">
+<span>Classified Villains</span>
+<span class="toggle-symbol">+</span>
+</button>
+<div class="collapsible-content" id="villains-content">
+<div class="dashboard-card collapsible-card" style="margin:12px;">
+<button aria-controls="vector-content" aria-expanded="false" class="section-toggle" type="button">
+<span>Vector Perkins</span>
+<span class="toggle-symbol">+</span>
+</button>
+<div class="collapsible-content" id="vector-content">
+<div class="villain-profile">
+<div class="villain-photo-wrap">
+<div class="confidential-stamp">CONFIDENTIAL</div>
+<img alt="Vector Perkins in his orange tracksuit" class="villain-photo" src="images/vector-perkins.png"/>
+</div>
+<section class="intel-block">
+<h3>Best Known For</h3>
+<ul>
+<li>Experimental gadgets and ridiculous inventions.</li>
+<li>Constantly trying to outsmart Gru.</li>
+<li>Cookie obsession.</li>
+<li>Shouting <strong>"OH YEAH!"</strong></li>
+</ul>
+</section>
+<section class="location-alert">
+<div class="location-label">Last Known Location</div>
+<div class="location-name">V Room</div>
+</section>
+<section class="warning-block">
+<h3>Mission Warning</h3>
+<p>Intelligence reports indicate Vector has recently been seen testing one of his latest inventions.</p>
+<p><strong>Proceed with caution.</strong></p>
+</section>
+</div>
+</div>
+</div>
+<div class="dashboard-card collapsible-card" style="margin:12px;">
+<button aria-controls="elmacho-content" aria-expanded="false" class="section-toggle" type="button">
+<span>El Macho</span>
+<span class="toggle-symbol">+</span>
+</button>
+<div class="collapsible-content" id="elmacho-content">
+<div class="villain-profile">
+<div class="villain-photo-wrap" style="background:#111;">
+<div class="confidential-stamp">CONFIDENTIAL</div>
+<img alt="El Macho" class="villain-photo" src="images/el-macho.png" style="object-fit:cover;object-position:center 18%;width:100%;height:320px;background:#111;"/>
+</div>
+<section class="intel-block">
+<h3>Best Known For</h3>
+<ul>
+<li>Extreme confidence and theatrical entrances.</li>
+<li>Incredible strength and over-the-top bravado.</li>
+<li>Creator of the PX-41 serum.</li>
+<li>Turning Minions into wild Purple Minions.</li>
+</ul>
+</section>
+<section class="location-alert">
+<div class="location-label">Last Known Location</div>
+<div class="location-name">ISM Brewing &amp; Kitchen</div>
+</section>
+<section class="warning-block">
+<h3>Mission Warning</h3>
+<p>Intelligence reports indicate there is a <strong>high probability that PX-41 serum has contaminated the surrounding area.</strong></p>
+<p><strong>Accidental consumption is highly likely.</strong></p>
+</section>
+</div>
+</div>
+</div><div class="dashboard-card collapsible-card" style="margin:12px;">
+<button aria-controls="scarlet-content" aria-expanded="false" class="section-toggle" type="button">
+<span>Scarlet Overkill</span>
+<span class="toggle-symbol">+</span>
+</button>
+<div class="collapsible-content" id="scarlet-content">
+<div class="villain-profile">
+<div class="villain-photo-wrap" style="background:#111;">
+<div class="confidential-stamp">CONFIDENTIAL</div>
+<img alt="Scarlet Overkill" class="villain-photo" src="images/scarlet-overkill.png" style="object-fit:cover;object-position:65% top;width:100%;height:320px;background:#111;"/>
+</div>
+<section class="intel-block">
+<h3>Best Known For</h3>
+<ul>
+<li>Master thief with a flair for dramatic entrances.</li>
+<li>Obsessed with stealing valuable treasures.</li>
+<li>Manipulating others to achieve her goals.</li>
+<li>Expecting complete loyalty from her followers.</li>
+</ul>
+</section>
+<section class="location-alert">
+<div class="location-label">Last Known Location</div>
+<div class="location-name">Unknown</div>
+</section>
+<section class="warning-block">
+<h3>Mission Warning</h3>
+<p>Intelligence reports indicate Scarlet has been searching for opportunities to seize control of Gru Industries communications.</p>
+<p><strong>Any unexpected transmission should be considered compromised.</strong></p>
+</section>
+</div>
+</div>
+</div><div class="dashboard-card collapsible-card" style="margin:12px;">
+<button aria-controls="bratt-content" aria-expanded="false" class="section-toggle" type="button">
+<span>Balthazar Bratt</span>
+<span class="toggle-symbol">+</span>
+</button>
+<div class="collapsible-content" id="bratt-content">
+<div class="villain-profile">
+<div class="villain-photo-wrap" style="background:#111;">
+<div class="confidential-stamp">CONFIDENTIAL</div>
+<img alt="Balthazar Bratt" class="villain-photo" src="images/balthazar-bratt.png" style="object-fit:cover;object-position:center 12%;width:100%;height:320px;background:#111;"/>
+</div>
+<section class="intel-block">
+<h3>Best Known For</h3>
+<ul>
+<li>Former child television star <strong>"Bad Bratt."</strong></li>
+<li>Obsessed with 1980s music, fashion, and pop culture.</li>
+<li>Uses bubble gum and toys as surprisingly dangerous weapons.</li>
+<li>Believes his television career never ended.</li>
+</ul>
+</section>
+<section class="location-alert">
+<div class="location-label">Last Known Location</div>
+<div class="location-name">Between The Stache Bar &amp; Everywhere Brewing</div>
+</section>
+<section class="warning-block">
+<h3>Mission Warning</h3>
+<p>Intelligence reports indicate Bratt has resumed promoting his former television career.</p>
+<p><strong>Exposure to extended 1980s music is highly probable.</strong></p>
+</section>
+</div>
+</div>
+</div></div>
+</div>
+<button class="scarlet-test-btn" id="test-scarlet-call" type="button">Test Scarlet Call</button><button class="switch-minion-btn" id="switch-minion-btn" type="button">
+          Switch Minion
+        </button><p class="footer">
+
+      GRU File #JJH-26-BEER<br/>
+      Field Operations Portal
+    </p>
+</section>
+<div aria-hidden="true" class="scarlet-call-overlay hidden" id="scarlet-call-overlay">
+<div class="call-phone-shell">
+<div class="call-status-bar">
+<span>GRU INDUSTRIES SECURE LINE</span>
+<span id="call-status-text">INCOMING TRANSMISSION</span>
+</div>
+<div class="call-view" id="incoming-call-view">
+<div class="caller-label">Incoming Call</div>
+<div class="caller-image-wrap"><img alt="Scarlet Overkill" class="caller-image" src="images/scarlet-overkill.png"/></div>
+<h2>Scarlet Overkill</h2>
+<p class="caller-subtext">Unknown secure connection</p>
+<div class="call-actions">
+<button class="call-action decline" id="decline-call" type="button"><span class="call-icon">✕</span><span>Decline</span></button>
+<button class="call-action answer" id="answer-call" type="button"><span class="call-icon">●</span><span>Answer</span></button>
+</div>
+</div>
+<div class="call-view hidden" id="active-call-view">
+<div class="caller-label">Connected</div>
+<div class="caller-image-wrap active"><img alt="Scarlet Overkill" class="caller-image" src="images/scarlet-overkill.png"/></div>
+<h2>Scarlet Overkill</h2>
+<div class="call-timer" id="call-timer">00:00</div>
+<button aria-pressed="false" class="speaker-toggle" id="speaker-toggle" type="button">🔊 Speaker Off</button>
+<button class="ready-button" disabled="" id="ready-for-scarlet" type="button">Ready for Scarlet</button>
+<button class="end-call" id="end-call" type="button">End Call</button>
+</div>
+</div>
+</div><script>
+    const loginScreen = document.getElementById("login-screen");
+    const transitionScreen = document.getElementById("transition-screen");
+    const dashboardScreen = document.getElementById("dashboard-screen");
+    const form = document.getElementById("agent-form");
+    const nameInput = document.getElementById("agent-name");
+    const status = document.getElementById("status");
+    const transitionName = document.getElementById("transition-name");
+    const progressBar = document.getElementById("progress-bar");
+    const systemLog = document.getElementById("system-log");
+    const welcomeMessage = document.getElementById("welcome-message");
+
+    const steps = [
+      { text: "Authenticating minion credentials...", progress: 18 },
+      { text: "Verifying deployment zone...", progress: 38 },
+      { text: "Loading mission files...", progress: 61 },
+      { text: "Syncing bonus objectives...", progress: 82 },
+      { text: "Connection established.", progress: 100 }
+    ];
+
+    function addSystemLine(text) {
+      const line = document.createElement("div");
+      line.className = "system-line";
+      line.textContent = "> " + text;
+      systemLog.appendChild(line);
+    }
+
+    function runTransition(name) {
+      loginScreen.classList.add("hidden");
+      transitionScreen.classList.remove("hidden");
+      transitionName.textContent = `Minion ${name} registered.`;
+      systemLog.innerHTML = "";
+      progressBar.style.width = "0%";
+
+      steps.forEach((step, index) => {
+        setTimeout(() => {
+          addSystemLine(step.text);
+          progressBar.style.width = step.progress + "%";
+
+          if (index === steps.length - 1) {
+            setTimeout(() => {
+              transitionScreen.classList.add("hidden");
+              showDashboardFor(name, false);
+            }, 850);
+          }
+        }, 650 * (index + 1));
+      });
+    }
+
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      const minionName = nameInput.value.trim();
+
+      if (!minionName) {
+        status.style.display = "block";
+        status.textContent = "Minion identification required.";
+        nameInput.focus();
+        return;
+      }
+
+      localStorage.setItem("gruMinionName", minionName);
+      runTransition(minionName);
+    });
+
+    document.querySelectorAll(".section-toggle").forEach((toggle) => {
+      toggle.addEventListener("click", () => {
+        const contentId = toggle.getAttribute("aria-controls");
+        const content = document.getElementById(contentId);
+        const isOpen = content.classList.toggle("open");
+        toggle.setAttribute("aria-expanded", String(isOpen));
+        toggle.querySelector(".toggle-symbol").textContent = isOpen ? "−" : "+";
+      });
+    });
+
+
+    const objectiveCheckboxes = Array.from(
+      document.querySelectorAll('.objective-item input[type="checkbox"]')
+    );
+    const missionPointsDisplay = document.getElementById("mission-points");
+
+    function getCurrentMinionName() {
+      return localStorage.getItem("gruMinionName") || "guest";
+    }
+
+    function getProgressStorageKey() {
+      return `gruMissionProgress_v2:${getCurrentMinionName()}`;
+    }
+
+    function updateMissionPoints() {
+      const total = objectiveCheckboxes.reduce((sum, checkbox) => {
+        return sum + (checkbox.checked ? Number(checkbox.dataset.points || 0) : 0);
+      }, 0);
+
+      missionPointsDisplay.textContent = String(total);
+
+      const checkedStates = objectiveCheckboxes.map((checkbox) => checkbox.checked);
+      localStorage.setItem(
+        getProgressStorageKey(),
+        JSON.stringify({ checkedStates, total })
+      );
+    }
+
+    function loadMissionProgress() {
+      const saved = localStorage.getItem(getProgressStorageKey());
+      if (!saved) {
+        updateMissionPoints();
+        return;
+      }
+
+      try {
+        const progress = JSON.parse(saved);
+        if (Array.isArray(progress.checkedStates)) {
+          objectiveCheckboxes.forEach((checkbox, index) => {
+            checkbox.checked = Boolean(progress.checkedStates[index]);
+          });
+        }
+      } catch (error) {
+        console.warn("Unable to restore saved mission progress.", error);
+      }
+
+      updateMissionPoints();
+    }
+
+    objectiveCheckboxes.forEach((checkbox) => {
+      checkbox.addEventListener("change", updateMissionPoints);
+    });
+
+  
+
+    function showDashboardFor(name, returning = false) {
+      loginScreen.classList.add("hidden");
+      transitionScreen.classList.add("hidden");
+      dashboardScreen.classList.remove("hidden");
+      welcomeMessage.textContent = returning
+        ? `Welcome back, Minion ${name}. Your mission is still active.`
+        : `Welcome, Minion ${name}. Your mission is now active.`;
+      loadMissionProgress();
+    }
+
+    function clearActiveMinion() {
+      const currentName = localStorage.getItem("gruMinionName");
+      if (currentName) {
+        localStorage.removeItem(`gruMissionProgress_v2:${currentName}`);
+      }
+      localStorage.removeItem("gruMinionName");
+
+      dashboardScreen.classList.add("hidden");
+      transitionScreen.classList.add("hidden");
+      loginScreen.classList.remove("hidden");
+
+      nameInput.value = "";
+      status.style.display = "none";
+      missionPointsDisplay.textContent = "0";
+      objectiveCheckboxes.forEach((checkbox) => {
+        checkbox.checked = false;
+      });
+    }
+
+    const switchMinionButton = document.getElementById("switch-minion-btn");
+    if (switchMinionButton) {
+      switchMinionButton.addEventListener("click", clearActiveMinion);
+    }
+
+    const savedMinionName = localStorage.getItem("gruMinionName");
+    if (savedMinionName) {
+      showDashboardFor(savedMinionName, true);
+    }
+
+
+const scarletOverlay=document.getElementById("scarlet-call-overlay");
+const incomingCallView=document.getElementById("incoming-call-view");
+const activeCallView=document.getElementById("active-call-view");
+const testScarletCallButton=document.getElementById("test-scarlet-call");
+const answerCallButton=document.getElementById("answer-call");
+const declineCallButton=document.getElementById("decline-call");
+const endCallButton=document.getElementById("end-call");
+const speakerToggle=document.getElementById("speaker-toggle");
+const readyForScarletButton=document.getElementById("ready-for-scarlet");
+const callTimer=document.getElementById("call-timer");
+const callStatusText=document.getElementById("call-status-text");
+let callTimerInterval=null,callSeconds=0,declineTimeout=null;
+function fmt(t){return `${String(Math.floor(t/60)).padStart(2,"0")}:${String(t%60).padStart(2,"0")}`;}
+function resetCallUI(){clearInterval(callTimerInterval);clearTimeout(declineTimeout);callSeconds=0;callTimer.textContent="00:00";callStatusText.textContent="INCOMING TRANSMISSION";incomingCallView.classList.remove("hidden");activeCallView.classList.add("hidden");speakerToggle.classList.remove("active");speakerToggle.setAttribute("aria-pressed","false");speakerToggle.textContent="🔊 Speaker Off";readyForScarletButton.disabled=true;readyForScarletButton.textContent="Ready for Scarlet";}
+function openScarletCall(){resetCallUI();scarletOverlay.classList.remove("hidden");scarletOverlay.setAttribute("aria-hidden","false");if(navigator.vibrate)navigator.vibrate([450,250,450,250,700]);}
+function closeScarletCall(){clearInterval(callTimerInterval);clearTimeout(declineTimeout);if(navigator.vibrate)navigator.vibrate(0);scarletOverlay.classList.add("hidden");scarletOverlay.setAttribute("aria-hidden","true");}
+function answerScarletCall(){if(navigator.vibrate)navigator.vibrate(0);incomingCallView.classList.add("hidden");activeCallView.classList.remove("hidden");callStatusText.textContent="CONNECTED";callSeconds=0;callTimerInterval=setInterval(()=>{callSeconds++;callTimer.textContent=fmt(callSeconds)},1000);}
+function declineScarletCall(){closeScarletCall();declineTimeout=setTimeout(openScarletCall,1800);}
+function toggleSpeaker(){const on=speakerToggle.classList.toggle("active");speakerToggle.setAttribute("aria-pressed",String(on));speakerToggle.textContent=on?"🔊 Speaker Enabled":"🔊 Speaker Off";readyForScarletButton.disabled=!on;}
+function markReady(){readyForScarletButton.textContent="Scarlet Is Ready";readyForScarletButton.disabled=true;callStatusText.textContent="AWAITING MESSAGE";}
+if(testScarletCallButton)testScarletCallButton.addEventListener("click",openScarletCall);
+if(answerCallButton)answerCallButton.addEventListener("click",answerScarletCall);
+if(declineCallButton)declineCallButton.addEventListener("click",declineScarletCall);
+if(speakerToggle)speakerToggle.addEventListener("click",toggleSpeaker);
+if(readyForScarletButton)readyForScarletButton.addEventListener("click",markReady);
+if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
+</script>
+</body>
+</html>
