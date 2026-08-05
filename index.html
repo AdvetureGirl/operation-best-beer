@@ -711,6 +711,130 @@
 .target-transmission-card p{line-height:1.5}
 #acknowledge-target{width:100%;min-height:50px;margin-top:12px;border:0;background:#161616;color:#fff;font-weight:950;letter-spacing:.12em;text-transform:uppercase}
 .target-trigger-status{min-height:1.4em;margin:10px 0 0!important;color:#8f2244;font-size:.78rem;font-weight:800}
+
+/* ===== Scarlet guest hijack prototype ===== */
+.scarlet-hijack-overlay{
+  position:fixed;
+  inset:0;
+  z-index:10040;
+  display:grid;
+  place-items:center;
+  padding:20px;
+  background:
+    radial-gradient(circle at top,rgba(112,0,24,.32),transparent 42%),
+    #09090c;
+  color:#fff;
+}
+.scarlet-hijack-overlay.hidden{display:none!important}
+.scarlet-hijack-card{
+  width:min(100%,430px);
+  min-height:min(680px,calc(100dvh - 40px));
+  padding:34px 26px 26px;
+  border:1px solid #7a1029;
+  background:linear-gradient(180deg,#111015 0%,#09090c 100%);
+  box-shadow:0 26px 70px rgba(0,0,0,.55);
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+}
+.scarlet-kicker{
+  color:#d54a68;
+  font-size:.72rem;
+  font-weight:950;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+}
+.scarlet-rule{
+  width:100%;
+  height:2px;
+  margin:14px 0 24px;
+  background:linear-gradient(90deg,transparent,#8f1837,transparent);
+}
+.scarlet-hijack-card h2{
+  margin:0;
+  color:#fff;
+  font-size:.92rem;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+}
+.scarlet-greeting{
+  margin:44px 0 8px;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:clamp(2rem,8vw,3rem);
+  line-height:1.1;
+}
+.scarlet-greeting span{
+  color:#d54a68;
+  text-transform:uppercase;
+}
+.scarlet-copy{
+  max-width:300px;
+  margin:0 auto;
+  color:#d9d5dc;
+  line-height:1.55;
+}
+.scarlet-objective{
+  margin:42px 0 26px;
+  padding:22px 18px;
+  border-top:1px solid #6d1730;
+  border-bottom:1px solid #6d1730;
+}
+.scarlet-objective-label{
+  color:#d54a68;
+  font-size:.68rem;
+  font-weight:950;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+}
+.scarlet-objective-text{
+  margin-top:10px;
+  color:#fff;
+  font-size:1.35rem;
+  font-weight:800;
+  line-height:1.35;
+}
+.take-group-photo,
+.restore-mission{
+  width:100%;
+  min-height:52px;
+  margin-top:auto;
+  border:1px solid #b52d4d;
+  background:#8f1837;
+  color:#fff;
+  font-weight:950;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.restore-mission{
+  margin-top:14px;
+  background:#f2eee7;
+  color:#171717;
+  border-color:#f2eee7;
+}
+.photo-status{
+  min-height:1.5em;
+  margin:14px 0 0;
+  color:#ddd8df;
+  font-size:.82rem;
+  font-weight:700;
+}
+.photo-preview{
+  width:100%;
+  max-height:240px;
+  margin-top:14px;
+  border:1px solid #6d1730;
+  object-fit:cover;
+}
+.photo-preview.hidden,
+.restore-mission.hidden{display:none!important}
+@media (max-height:720px){
+  .scarlet-hijack-card{
+    min-height:calc(100dvh - 20px);
+    padding-top:22px;
+  }
+  .scarlet-greeting{margin-top:24px}
+  .scarlet-objective{margin:26px 0 20px}
+}
 </style>
 </head>
 <body>
@@ -970,6 +1094,27 @@
 <p>Notify this Minion to check their mission board immediately.</p>
 <button id="acknowledge-target" type="button">Understood</button>
 <p aria-live="polite" class="target-trigger-status" id="target-trigger-status"></p>
+</section>
+</div><div aria-hidden="true" class="scarlet-hijack-overlay hidden" id="scarlet-hijack-overlay">
+<section aria-labelledby="scarlet-hijack-title" aria-modal="true" class="scarlet-hijack-card" role="dialog">
+<div class="scarlet-kicker">SCARLET OVERKILL</div>
+<div class="scarlet-rule"></div>
+<h2 id="scarlet-hijack-title">Mission Override</h2>
+<p class="scarlet-greeting">Hello, <span id="hijack-target-name">Kevin</span>.</p>
+<p class="scarlet-copy">I have temporarily taken over your mission.</p>
+<div class="scarlet-objective">
+<div class="scarlet-objective-label">Your New Objective</div>
+<div class="scarlet-objective-text">Take a group photo right now.</div>
+</div>
+<input accept="image/*" capture="environment" hidden="" id="scarlet-photo-input" type="file"/>
+<button class="take-group-photo" id="take-group-photo" type="button">
+      Take Group Photo
+    </button>
+<div aria-live="polite" class="photo-status" id="photo-status"></div>
+<img alt="Selected group photo preview" class="photo-preview hidden" id="photo-preview"/>
+<button class="restore-mission hidden" id="restore-mission" type="button">
+      Restore Mission
+    </button>
 </section>
 </div><script>
     const loginScreen = document.getElementById("login-screen");
@@ -1289,6 +1434,83 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
       transmissionOverlay.classList.add("hidden");
       transmissionOverlay.setAttribute("aria-hidden","true");
     },900);
+  });
+})();
+
+
+/* ===== Scarlet guest hijack prototype ===== */
+(function(){
+  const targetTransmission=document.getElementById("target-transmission-overlay");
+  const acknowledge=document.getElementById("acknowledge-target");
+  const hijackOverlay=document.getElementById("scarlet-hijack-overlay");
+  const hijackTargetName=document.getElementById("hijack-target-name");
+  const photoInput=document.getElementById("scarlet-photo-input");
+  const takePhotoButton=document.getElementById("take-group-photo");
+  const photoStatus=document.getElementById("photo-status");
+  const photoPreview=document.getElementById("photo-preview");
+  const restoreMission=document.getElementById("restore-mission");
+
+  function openLocalHijack(){
+    const target=(localStorage.getItem("scarletPendingHijackTarget")||"Minion").trim();
+    hijackTargetName.textContent=target;
+    photoStatus.textContent="";
+    photoPreview.classList.add("hidden");
+    photoPreview.removeAttribute("src");
+    restoreMission.classList.add("hidden");
+    takePhotoButton.disabled=false;
+    takePhotoButton.textContent="Take Group Photo";
+    hijackOverlay.classList.remove("hidden");
+    hijackOverlay.setAttribute("aria-hidden","false");
+  }
+
+  // Run after the existing UNDERSTOOD handler records the target.
+  acknowledge?.addEventListener("click",()=>{
+    setTimeout(openLocalHijack,1050);
+  });
+
+  takePhotoButton?.addEventListener("click",()=>{
+    photoInput.click();
+  });
+
+  photoInput?.addEventListener("change",()=>{
+    const file=photoInput.files && photoInput.files[0];
+    if(!file)return;
+
+    takePhotoButton.disabled=true;
+    takePhotoButton.textContent="Photo Captured";
+    photoStatus.textContent="Mission evidence received.";
+
+    const url=URL.createObjectURL(file);
+    photoPreview.src=url;
+    photoPreview.classList.remove("hidden");
+
+    // Prototype only: keep basic metadata locally for this device.
+    const target=localStorage.getItem("scarletPendingHijackTarget")||"Minion";
+    const completedAt=new Date().toISOString();
+    const records=JSON.parse(localStorage.getItem("scarletPrototypePhotos")||"[]");
+    records.push({
+      target,
+      completedAt,
+      fileName:file.name,
+      fileType:file.type,
+      fileSize:file.size
+    });
+    localStorage.setItem("scarletPrototypePhotos",JSON.stringify(records));
+
+    setTimeout(()=>{
+      restoreMission.classList.remove("hidden");
+    },500);
+  });
+
+  restoreMission?.addEventListener("click",()=>{
+    hijackOverlay.classList.add("hidden");
+    hijackOverlay.setAttribute("aria-hidden","true");
+    photoInput.value="";
+    localStorage.removeItem("scarletPendingHijackTarget");
+    localStorage.removeItem("scarletPendingHijackTimestamp");
+
+    // Briefly return to the normal Gru dashboard.
+    window.scrollTo({top:0,behavior:"smooth"});
   });
 })();
 </script>
