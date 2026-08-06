@@ -1167,7 +1167,7 @@
 </div>
 <details class="host-test-guests">
 <summary>Live Registered Minions</summary>
-<p>This list updates automatically from the shared Supabase guest database.</p>
+<p>Targets are selected from this shared live list with no repeats.</p>
 <div class="host-add-row" style="display:none">
 <input id="test-guest-name" maxlength="40" placeholder="Guest name" type="text"/>
 <button id="add-test-guest" type="button">Add</button>
@@ -2005,6 +2005,335 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   if(localStorage.getItem("gruHostMode")==="true")showHost();
   else syncTestControls();
   updatePanel();
+})();
+
+
+/* ===== Supabase remote target selection and hijack ===== */
+(function(){
+  const hostNextCall = document.getElementById("host-next-call");
+  const acknowledgeTarget = document.getElementById("acknowledge-target");
+  const releaseTargetButton = document.getElementById("release-target");
+  const releaseTargetPopup = document.getElementById("release-target-popup");
+  const startOperationButton = document.getElementById("start-operation");
+  const restoreMissionButton = document.getElementById("restore-mission");
+  const photoInput = document.getElementById("scarlet-photo-input");
+  const testTargetInput = document.getElementById("scarlet-test-target");
+  const testCallButton = document.getElementById("test-scarlet-call");
+  const reservedTargetName = document.getElementById("reserved-target-name");
+  const transmissionOverlay = document.getElementById("target-transmission-overlay");
+  const selectedTargetName = document.getElementById("selected-target-name");
+  const hijackOverlay = document.getElementById("scarlet-hijack-overlay");
+  const hijackTargetName = document.getElementById("hijack-target-name");
+
+  let liveReservedGuest = null;
+  let currentGuestRow = null;
+
+  async function loadCurrentGuestRow(){
+    const deviceId = getOrCreateDeviceId();
+    const { data, error } = await supabaseClient
+      .from("guests")
+      .select("*")
+      .eq("device_id", deviceId)
+      .limit(1);
+
+    if(error){
+      console.error("Unable to load current guest:", error);
+      return null;
+    }
+    currentGuestRow = data && data.length ? data[0] : null;
+    return currentGuestRow;
+  }
+
+  async function getEligibleGuests(){
+    const deviceId = getOrCreateDeviceId();
+    const { data, error } = await supabaseClient
+      .from("guests")
+      .select("*")
+      .eq("completed", false)
+      .eq("hijacked", false)
+      .neq("device_id", deviceId)
+      .order("registered_at", { ascending: true });
+
+    if(error) throw error;
+    return (data || []).filter(row => row.status !== "reserved");
+  }
+
+  async function reserveRandomGuest(){
+    const pool = await getEligibleGuests();
+    if(!pool.length){
+      alert("No available Minions remain.");
+      return null;
+    }
+
+    const guest = pool[Math.floor(Math.random() * pool.length)];
+    const { data, error } = await supabaseClient
+      .from("guests")
+      .update({ status: "reserved", hijacked: false })
+      .eq("id", guest.id)
+      .eq("completed", false)
+      .select()
+      .single();
+
+    if(error){
+      console.error("Unable to reserve guest:", error);
+      alert("The target could not be reserved. Please try again.");
+      return null;
+    }
+
+    liveReservedGuest = data;
+    localStorage.setItem("gruLiveReservedGuestId", data.id);
+    localStorage.setItem("gruLiveReservedGuestName", data.name);
+
+    if(reservedTargetName) reservedTargetName.textContent = data.name;
+    if(testTargetInput) testTargetInput.value = data.name;
+    return data;
+  }
+
+  async function releaseLiveTarget(){
+    let guestId = liveReservedGuest?.id || localStorage.getItem("gruLiveReservedGuestId");
+    if(!guestId){
+      alert("No target is currently reserved.");
+      return false;
+    }
+
+    const { error } = await supabaseClient
+      .from("guests")
+      .update({ status: "available", hijacked: false })
+      .eq("id", guestId)
+      .eq("completed", false);
+
+    if(error){
+      console.error("Unable to release target:", error);
+      alert("The target could not be released.");
+      return false;
+    }
+
+    liveReservedGuest = null;
+    localStorage.removeItem("gruLiveReservedGuestId");
+    localStorage.removeItem("gruLiveReservedGuestName");
+    if(reservedTargetName) reservedTargetName.textContent = "None";
+    await renderLiveGuests();
+    return true;
+  }
+
+  async function activateRemoteHijack(){
+    const guestId = liveReservedGuest?.id || localStorage.getItem("gruLiveReservedGuestId");
+    const guestName = liveReservedGuest?.name || localStorage.getItem("gruLiveReservedGuestName");
+
+    if(!guestId){
+      console.warn("No live reserved target available.");
+      return;
+    }
+
+    const { error } = await supabaseClient
+      .from("guests")
+      .update({ status: "hijacked", hijacked: true })
+      .eq("id", guestId)
+      .eq("completed", false);
+
+    if(error){
+      console.error("Unable to activate remote hijack:", error);
+      alert("The hijack could not be sent.");
+      return;
+    }
+
+    if(selectedTargetName && guestName) selectedTargetName.textContent = guestName;
+    await renderLiveGuests();
+  }
+
+  function showRemoteHijack(row){
+    if(!row) return;
+    if(hijackTargetName) hijackTargetName.textContent = row.name || "Minion";
+
+    const photoStatus = document.getElementById("photo-status");
+    const photoPreview = document.getElementById("photo-preview");
+    const takePhotoButton = document.getElementById("take-group-photo");
+
+    if(photoStatus) photoStatus.textContent = "";
+    if(photoPreview){
+      photoPreview.classList.add("hidden");
+      photoPreview.removeAttribute("src");
+    }
+    if(restoreMissionButton) restoreMissionButton.classList.add("hidden");
+    if(takePhotoButton){
+      takePhotoButton.disabled = false;
+      takePhotoButton.textContent = "Take Group Photo";
+    }
+
+    hijackOverlay?.classList.remove("hidden");
+    hijackOverlay?.setAttribute("aria-hidden", "false");
+  }
+
+  async function completeRemoteMission(){
+    const row = currentGuestRow || await loadCurrentGuestRow();
+    if(!row) return;
+
+    const { error } = await supabaseClient
+      .from("guests")
+      .update({
+        status: "completed",
+        hijacked: false,
+        completed: true
+      })
+      .eq("id", row.id);
+
+    if(error){
+      console.error("Unable to complete remote mission:", error);
+      alert("Mission completion could not be saved.");
+      return;
+    }
+
+    currentGuestRow = { ...row, status: "completed", hijacked: false, completed: true };
+    await renderLiveGuests();
+  }
+
+  async function resetLiveOperation(){
+    const { error } = await supabaseClient
+      .from("guests")
+      .update({
+        status: "available",
+        hijacked: false,
+        completed: false
+      })
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+
+    if(error){
+      console.error("Unable to reset live guests:", error);
+      alert("The live guest pool could not be reset.");
+      return;
+    }
+
+    liveReservedGuest = null;
+    localStorage.removeItem("gruLiveReservedGuestId");
+    localStorage.removeItem("gruLiveReservedGuestName");
+    if(reservedTargetName) reservedTargetName.textContent = "None";
+    await loadCurrentGuestRow();
+    await renderLiveGuests();
+  }
+
+  // Capture and replace local-only host control behavior.
+  hostNextCall?.addEventListener("click", async event => {
+    event.stopImmediatePropagation();
+    event.preventDefault();
+
+    const status = localStorage.getItem("gruOperationStatus") || "ready";
+    if(status !== "active"){
+      alert("Start the operation first.");
+      return;
+    }
+
+    if(liveReservedGuest || localStorage.getItem("gruLiveReservedGuestId")){
+      alert("A Minion is already reserved. Complete or release that target first.");
+      return;
+    }
+
+    const guest = await reserveRandomGuest();
+    if(!guest) return;
+    testCallButton?.click();
+  }, true);
+
+  acknowledgeTarget?.addEventListener("click", async event => {
+    event.stopImmediatePropagation();
+    await activateRemoteHijack();
+
+    if(transmissionOverlay){
+      setTimeout(() => {
+        transmissionOverlay.classList.add("hidden");
+        transmissionOverlay.setAttribute("aria-hidden", "true");
+      }, 650);
+    }
+  }, true);
+
+  releaseTargetButton?.addEventListener("click", async event => {
+    event.stopImmediatePropagation();
+    await releaseLiveTarget();
+  }, true);
+
+  releaseTargetPopup?.addEventListener("click", async event => {
+    event.stopImmediatePropagation();
+    const released = await releaseLiveTarget();
+    if(released && transmissionOverlay){
+      transmissionOverlay.classList.add("hidden");
+      transmissionOverlay.setAttribute("aria-hidden", "true");
+    }
+  }, true);
+
+  startOperationButton?.addEventListener("click", async () => {
+    setTimeout(resetLiveOperation, 100);
+  }, true);
+
+  // When a photo is chosen, save completion to Supabase.
+  photoInput?.addEventListener("change", async () => {
+    const file = photoInput.files && photoInput.files[0];
+    if(!file) return;
+    await completeRemoteMission();
+  }, true);
+
+  restoreMissionButton?.addEventListener("click", async () => {
+    await completeRemoteMission();
+  }, true);
+
+  // Listen specifically for changes to this device's guest row.
+  async function subscribeToCurrentGuest(){
+    const row = await loadCurrentGuestRow();
+    if(!row) return;
+
+    supabaseClient
+      .channel(`guest-device-${row.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "guests",
+          filter: `id=eq.${row.id}`
+        },
+        payload => {
+          currentGuestRow = payload.new;
+
+          if(payload.new.hijacked && payload.new.status === "hijacked"){
+            showRemoteHijack(payload.new);
+          }
+
+          if(!payload.new.hijacked && payload.new.status !== "hijacked"){
+            if(!hijackOverlay?.classList.contains("hidden") && payload.new.completed){
+              hijackOverlay.classList.add("hidden");
+              hijackOverlay.setAttribute("aria-hidden", "true");
+            }
+          }
+
+          renderLiveGuests();
+        }
+      )
+      .subscribe();
+  }
+
+  // Restore a reserved target after host refresh.
+  async function restoreReservedTarget(){
+    const guestId = localStorage.getItem("gruLiveReservedGuestId");
+    if(!guestId) return;
+
+    const { data, error } = await supabaseClient
+      .from("guests")
+      .select("*")
+      .eq("id", guestId)
+      .limit(1);
+
+    if(!error && data && data.length && !data[0].completed){
+      liveReservedGuest = data[0];
+      if(reservedTargetName) reservedTargetName.textContent = data[0].name;
+    } else {
+      localStorage.removeItem("gruLiveReservedGuestId");
+      localStorage.removeItem("gruLiveReservedGuestName");
+    }
+  }
+
+  window.addEventListener("load", async () => {
+    await loadCurrentGuestRow();
+    await restoreReservedTarget();
+    await subscribeToCurrentGuest();
+    await renderLiveGuests();
+  });
 })();
 </script>
 </body>
