@@ -1069,6 +1069,28 @@
 @media(max-width:520px){
   .debrief-file-meta{grid-template-columns:1fr}
 }
+
+/* ===== Deployment reset + Debrief host access ===== */
+.debrief-host-controls{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:20px;
+}
+.debrief-host-controls.hidden{display:none!important}
+.debrief-host-controls button{
+  min-height:46px;
+  border:0;
+  background:#171717;
+  color:#fff;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.debrief-host-controls button:last-child{background:#8f1837}
+@media(max-width:520px){
+  .debrief-host-controls{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
@@ -1317,7 +1339,7 @@
 <button class="host-secondary" id="pause-operation" type="button">Pause Operation</button>
 <button class="host-secondary" id="release-target" type="button">Release Target</button>
 <button class="host-danger" id="end-operation" type="button">End Operation</button>
-</div>
+<button class="host-danger" id="prepare-deployment" type="button">Prepare for Deployment</button></div>
 <details class="host-test-guests">
 <summary>Live Registered Minions</summary>
 <p>Targets are selected from this shared live list with no repeats.</p>
@@ -1413,7 +1435,7 @@
 </section>
 </div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><section aria-hidden="true" class="mission-debrief-screen hidden" id="mission-debrief-screen">
 <header class="debrief-header">
-<div class="debrief-kicker">GRU INDUSTRIES</div>
+<div class="debrief-kicker gru-host-trigger" id="debrief-host-trigger">GRU INDUSTRIES</div>
 <h1>Mission Debrief</h1>
 <p class="debrief-operation">Operation Best Beer · September 12, 2026</p>
 <div class="debrief-summary">
@@ -1424,7 +1446,10 @@
       Scarlet believed these files were hers.<br/>
       She was mistaken.
     </p>
-</header>
+<div class="debrief-host-controls hidden" id="debrief-host-controls">
+<button id="resume-operation" type="button">Resume Operation</button>
+<button id="prepare-deployment-debrief" type="button">Prepare for Deployment</button>
+</div></header>
 <main class="debrief-files" id="debrief-files">
 <p class="debrief-empty">Recovered mission files are loading...</p>
 </main>
@@ -2933,6 +2958,174 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
     .subscribe();
 
   window.addEventListener("load", loadSharedOperationState);
+})();
+
+
+/* ===== Prepare for Deployment + Debrief host recovery ===== */
+(function(){
+  const HOST_CODE = "Dream";
+  const prepareButton = document.getElementById("prepare-deployment");
+  const prepareDebriefButton = document.getElementById("prepare-deployment-debrief");
+  const resumeButton = document.getElementById("resume-operation");
+  const debriefTrigger = document.getElementById("debrief-host-trigger");
+  const debriefControls = document.getElementById("debrief-host-controls");
+  const debriefScreen = document.getElementById("mission-debrief-screen");
+  const statusBadge = document.getElementById("operation-status-badge");
+
+  let debriefTapCount = 0;
+  let debriefTapTimer = null;
+
+  async function deleteAllMissionPhotos(){
+    const { data: files, error: listError } = await supabaseClient
+      .storage
+      .from("mission-photos")
+      .list("operation-best-beer", { limit: 1000 });
+
+    if(listError) throw listError;
+    if(!files || !files.length) return;
+
+    // Each mission is stored in a subfolder; list each folder and remove all contents.
+    const allPaths = [];
+    for(const folder of files){
+      const { data: nested, error: nestedError } = await supabaseClient
+        .storage
+        .from("mission-photos")
+        .list(`operation-best-beer/${folder.name}`, { limit: 1000 });
+
+      if(nestedError) throw nestedError;
+      (nested || []).forEach(file => {
+        allPaths.push(`operation-best-beer/${folder.name}/${file.name}`);
+      });
+    }
+
+    if(allPaths.length){
+      const { error: removeError } = await supabaseClient
+        .storage
+        .from("mission-photos")
+        .remove(allPaths);
+      if(removeError) throw removeError;
+    }
+  }
+
+  async function prepareForDeployment(){
+    const phrase = prompt(
+      "Prepare for Deployment will permanently clear all mission records and uploaded photos while keeping registered guests.\n\nType DEPLOY to continue."
+    );
+
+    if(phrase !== "DEPLOY") return;
+
+    try{
+      if(statusBadge){
+        statusBadge.textContent = "Preparing";
+        statusBadge.className = "operation-status-badge paused";
+      }
+
+      await deleteAllMissionPhotos();
+
+      const { error: missionDeleteError } = await supabaseClient
+        .from("missions")
+        .delete()
+        .neq("id", 0);
+      if(missionDeleteError) throw missionDeleteError;
+
+      const { error: guestResetError } = await supabaseClient
+        .from("guests")
+        .update({
+          status: "available",
+          hijacked: false,
+          completed: false
+        })
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+      if(guestResetError) throw guestResetError;
+
+      const { error: stateError } = await supabaseClient
+        .from("operation_state")
+        .upsert({
+          id: 1,
+          status: "ready",
+          current_stop: "ISM Brewing & Kitchen",
+          updated_at: new Date().toISOString()
+        }, { onConflict: "id" });
+      if(stateError) throw stateError;
+
+      localStorage.setItem("scarletRecordedCallSequence_v1", "0");
+      window.dispatchEvent(new Event("scarletResetSequence"));
+      localStorage.removeItem("gruLiveReservedGuestId");
+      localStorage.removeItem("gruLiveReservedGuestName");
+      localStorage.removeItem("scarletPendingHijackTarget");
+      localStorage.removeItem("scarletPendingHijackTimestamp");
+      localStorage.removeItem("scarletPrototypePhotos");
+      localStorage.setItem("gruOperationStatus", "ready");
+      localStorage.setItem("gruCurrentStop", "ISM Brewing & Kitchen");
+
+      document.getElementById("reserved-target-name").textContent = "None";
+      document.getElementById("current-stop-select").value = "ISM Brewing & Kitchen";
+
+      if(debriefScreen){
+        debriefScreen.classList.add("hidden");
+        debriefScreen.setAttribute("aria-hidden","true");
+      }
+      document.body.style.overflow = "";
+
+      await renderLiveGuests();
+
+      if(statusBadge){
+        statusBadge.textContent = "Ready";
+        statusBadge.className = "operation-status-badge";
+      }
+
+      alert("Deployment preparation complete. The system is ready.");
+    }catch(error){
+      console.error("Prepare for Deployment failed:", error);
+      alert(`Deployment reset failed: ${error.message || error}`);
+    }
+  }
+
+  async function resumeOperation(){
+    try{
+      const { error } = await supabaseClient
+        .from("operation_state")
+        .upsert({
+          id: 1,
+          status: "active",
+          current_stop: document.getElementById("current-stop-select")?.value || "ISM Brewing & Kitchen",
+          updated_at: new Date().toISOString()
+        }, { onConflict: "id" });
+
+      if(error) throw error;
+
+      localStorage.setItem("gruOperationStatus", "active");
+      debriefScreen?.classList.add("hidden");
+      debriefScreen?.setAttribute("aria-hidden","true");
+      document.body.style.overflow = "";
+    }catch(error){
+      console.error("Unable to resume operation:", error);
+      alert("The operation could not be resumed.");
+    }
+  }
+
+  function unlockDebriefHostControls(){
+    const code = prompt("Host access code:");
+    if(code !== HOST_CODE){
+      alert("Access denied.");
+      return;
+    }
+    debriefControls?.classList.remove("hidden");
+  }
+
+  debriefTrigger?.addEventListener("click",()=>{
+    debriefTapCount++;
+    clearTimeout(debriefTapTimer);
+    debriefTapTimer = setTimeout(()=>debriefTapCount=0,1800);
+    if(debriefTapCount >= 5){
+      debriefTapCount = 0;
+      unlockDebriefHostControls();
+    }
+  });
+
+  prepareButton?.addEventListener("click", prepareForDeployment);
+  prepareDebriefButton?.addEventListener("click", prepareForDeployment);
+  resumeButton?.addEventListener("click", resumeOperation);
 })();
 </script>
 </body>
