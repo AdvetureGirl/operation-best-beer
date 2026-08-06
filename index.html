@@ -903,6 +903,19 @@
   letter-spacing:.11em;
   text-transform:uppercase;
 }
+
+.database-status{
+  display:inline-flex;
+  align-items:center;
+  padding:7px 10px;
+  border:1px solid #477847;
+  background:#dcebd9;
+  color:#234f23;
+  font-size:.62rem;
+  font-weight:950;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
 </style>
 </head>
 <body>
@@ -1124,7 +1137,7 @@
 <h2>Host Control Panel</h2>
 </div>
 <span class="operation-status-badge" id="operation-status-badge">Ready</span>
-</div>
+<span class="database-status" id="database-status">Database Live</span></div>
 <div class="host-stats">
 <div><strong id="registered-count">0</strong><span>Registered Minions</span></div>
 <div><strong id="remaining-count">0</strong><span>Remaining Targets</span></div>
@@ -1153,9 +1166,9 @@
 <button class="host-danger" id="end-operation" type="button">End Operation</button>
 </div>
 <details class="host-test-guests">
-<summary>Local Test Guest List</summary>
-<p>Add names here to simulate the future live database.</p>
-<div class="host-add-row">
+<summary>Live Registered Minions</summary>
+<p>This list updates automatically from the shared Supabase guest database.</p>
+<div class="host-add-row" style="display:none">
 <input id="test-guest-name" maxlength="40" placeholder="Guest name" type="text"/>
 <button id="add-test-guest" type="button">Add</button>
 </div>
@@ -1242,7 +1255,114 @@
 <button id="verify-host-auth" type="button">Verify</button>
 </div>
 </section>
-</div><script>
+</div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
+    /* ===== Supabase live guest registration ===== */
+    const SUPABASE_URL = "https://ghwaubanhswjpocsmiwi.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_c6PrOCrmlTQpC8sErrFjjA_BAJmIcDl";
+    const supabaseClient = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
+    );
+
+    function getOrCreateDeviceId() {
+      let deviceId = localStorage.getItem("gruDeviceId");
+      if (!deviceId) {
+        deviceId = (window.crypto && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : `device-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        localStorage.setItem("gruDeviceId", deviceId);
+      }
+      return deviceId;
+    }
+
+    async function registerGuestLive(name) {
+      const deviceId = getOrCreateDeviceId();
+
+      const { data: existing, error: lookupError } = await supabaseClient
+        .from("guests")
+        .select("id")
+        .eq("device_id", deviceId)
+        .limit(1);
+
+      if (lookupError) throw lookupError;
+
+      if (existing && existing.length) {
+        const { error } = await supabaseClient
+          .from("guests")
+          .update({
+            name,
+            status: "available",
+            hijacked: false,
+            completed: false
+          })
+          .eq("id", existing[0].id);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabaseClient
+          .from("guests")
+          .insert({
+            name,
+            device_id: deviceId,
+            status: "available",
+            hijacked: false,
+            completed: false
+          });
+
+        if (error) throw error;
+      }
+    }
+
+    async function fetchLiveGuests() {
+      const { data, error } = await supabaseClient
+        .from("guests")
+        .select("id,name,device_id,status,hijacked,completed,registered_at")
+        .order("registered_at", { ascending: true });
+
+      if (error) {
+        console.error("Unable to load live guests:", error);
+        return [];
+      }
+      return data || [];
+    }
+
+    async function renderLiveGuests() {
+      const rows = await fetchLiveGuests();
+      const registeredEl = document.getElementById("registered-count");
+      const remainingEl = document.getElementById("remaining-count");
+      const completedEl = document.getElementById("completed-count");
+      const listEl = document.getElementById("test-guest-list");
+
+      const completed = rows.filter(row => row.completed).length;
+      const remaining = rows.filter(row => !row.completed).length;
+
+      if (registeredEl) registeredEl.textContent = String(rows.length);
+      if (remainingEl) remainingEl.textContent = String(remaining);
+      if (completedEl) completedEl.textContent = String(completed);
+
+      if (listEl) {
+        listEl.innerHTML = "";
+        rows.forEach(row => {
+          const chip = document.createElement("span");
+          chip.className = "test-guest-chip";
+          if (row.completed) chip.classList.add("completed");
+          if (row.hijacked || row.status === "reserved") chip.classList.add("reserved");
+          chip.textContent = row.name || "Unnamed Minion";
+          listEl.appendChild(chip);
+        });
+      }
+    }
+
+    const guestRealtimeChannel = supabaseClient
+      .channel("operation-best-beer-guests")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "guests" },
+        () => renderLiveGuests()
+      )
+      .subscribe();
+
+
     const loginScreen = document.getElementById("login-screen");
     const transitionScreen = document.getElementById("transition-screen");
     const dashboardScreen = document.getElementById("dashboard-screen");
@@ -1291,7 +1411,7 @@
       });
     }
 
-    form.addEventListener("submit", function (event) {
+    form.addEventListener("submit", async function (event) {
       event.preventDefault();
       const minionName = nameInput.value.trim();
 
@@ -1302,8 +1422,20 @@
         return;
       }
 
-      localStorage.setItem("gruMinionName", minionName);
-      runTransition(minionName);
+      status.style.display = "block";
+      status.textContent = "Registering Minion with Gru Industries...";
+
+      try {
+        await registerGuestLive(minionName);
+        localStorage.setItem("gruMinionName", minionName);
+        status.style.display = "none";
+        await renderLiveGuests();
+        runTransition(minionName);
+      } catch (error) {
+        console.error("Guest registration failed:", error);
+        status.style.display = "block";
+        status.textContent = "Unable to register Minion. Check the connection and try again.";
+      }
     });
 
     document.querySelectorAll(".section-toggle").forEach((toggle) => {
@@ -1408,6 +1540,11 @@
     const savedMinionName = localStorage.getItem("gruMinionName");
     if (savedMinionName) {
       showDashboardFor(savedMinionName, true);
+      registerGuestLive(savedMinionName)
+        .then(renderLiveGuests)
+        .catch(error => console.error("Unable to refresh returning Minion:", error));
+    } else {
+      renderLiveGuests();
     }
 
 
