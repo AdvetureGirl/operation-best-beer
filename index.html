@@ -916,6 +916,18 @@
   letter-spacing:.08em;
   text-transform:uppercase;
 }
+
+.live-guest-management{margin-top:12px}
+.guest-management-note{font-size:.76rem!important;color:#6b6760!important}
+.live-guest-removal-list{display:grid;gap:7px;margin-top:8px}
+.live-guest-remove{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  width:100%;padding:9px 10px;border:1px solid #b8b2a8;background:#fff;color:#171717;
+  text-align:left;font-size:.82rem
+}
+.live-guest-remove span:last-child{
+  color:#8f1837;font-weight:900;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase
+}
 </style>
 </head>
 <body>
@@ -1173,7 +1185,10 @@
 <button id="add-test-guest" type="button">Add</button>
 </div>
 <div class="test-guest-list" id="test-guest-list"></div>
-</details>
+<div class="live-guest-management" id="live-guest-management">
+<p class="guest-management-note">Tap a registered Minion below to remove stale test registrations.</p>
+<div class="live-guest-removal-list" id="live-guest-removal-list"></div>
+</div></details>
 <button class="host-link-button" id="exit-host-mode" type="button">Exit Host Mode</button>
 <p class="host-access-footer">Access Level: Commander</p>
 </section><button class="scarlet-test-btn" id="test-scarlet-call" type="button">Test Scarlet Call</button><div class="scarlet-target-test">
@@ -1311,6 +1326,10 @@
 
         if (error) throw error;
       }
+
+      window.dispatchEvent(new CustomEvent("gruGuestRegisteredLive", {
+        detail: { name, deviceId }
+      }));
     }
 
     async function fetchLiveGuests() {
@@ -1349,6 +1368,39 @@
           if (row.hijacked || row.status === "reserved") chip.classList.add("reserved");
           chip.textContent = row.name || "Unnamed Minion";
           listEl.appendChild(chip);
+        });
+      }
+
+      const removalList = document.getElementById("live-guest-removal-list");
+      if (removalList) {
+        removalList.innerHTML = "";
+        rows.forEach(row => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "live-guest-remove";
+          button.innerHTML = `<span>${row.name || "Unnamed Minion"}</span><span>Remove</span>`;
+          button.addEventListener("click", async () => {
+            const currentDeviceId = getOrCreateDeviceId();
+            if (row.device_id === currentDeviceId) {
+              alert("You cannot remove the Minion currently using this host device.");
+              return;
+            }
+            if (!confirm(`Remove ${row.name} from the live guest list?`)) return;
+
+            const { error } = await supabaseClient
+              .from("guests")
+              .delete()
+              .eq("id", row.id);
+
+            if (error) {
+              console.error("Unable to remove guest:", error);
+              alert("That guest could not be removed.");
+              return;
+            }
+
+            await renderLiveGuests();
+          });
+          removalList.appendChild(button);
         });
       }
     }
@@ -2274,12 +2326,19 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   }, true);
 
   // Listen specifically for changes to this device's guest row.
+  let currentGuestChannel = null;
+
   async function subscribeToCurrentGuest(){
     const row = await loadCurrentGuestRow();
     if(!row) return;
 
-    supabaseClient
-      .channel(`guest-device-${row.id}`)
+    if(currentGuestChannel){
+      try { await supabaseClient.removeChannel(currentGuestChannel); } catch(_){}
+      currentGuestChannel = null;
+    }
+
+    currentGuestChannel = supabaseClient
+      .channel(`guest-device-${row.id}-${Date.now()}`)
       .on(
         "postgres_changes",
         {
@@ -2305,8 +2364,16 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
           renderLiveGuests();
         }
       )
-      .subscribe();
+      .subscribe(status => {
+        console.log("Guest realtime status:", status, row.name);
+      });
   }
+
+  window.addEventListener("gruGuestRegisteredLive", async () => {
+    await loadCurrentGuestRow();
+    await subscribeToCurrentGuest();
+    await renderLiveGuests();
+  });
 
   // Restore a reserved target after host refresh.
   async function restoreReservedTarget(){
