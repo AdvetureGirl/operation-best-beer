@@ -1630,7 +1630,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
 /* ===== Scarlet recorded playlist + host target transmission ===== */
 (function(){
   const callFiles=[
-    "audio/call-1.mp3","audio/call-2.mp3","audio/call-3.mp3","audio/call-4.mp3",
+    "audio/call-1.mp3","audio/call-3.mp3","audio/call-2.mp3","audio/call-4.mp3",
     "audio/call-5.mp3","audio/call-6.mp3","audio/call-7.mp3","audio/call-8.mp3"
   ];
 
@@ -2401,6 +2401,162 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
     await subscribeToCurrentGuest();
     await renderLiveGuests();
   });
+})();
+
+
+/* ===== Supabase photo storage + mission records ===== */
+(function(){
+  const PHOTO_BUCKET = "mission-photos";
+  const photoInput = document.getElementById("scarlet-photo-input");
+  const photoStatus = document.getElementById("photo-status");
+  const restoreMission = document.getElementById("restore-mission");
+  const takePhotoButton = document.getElementById("take-group-photo");
+  const currentStopSelect = document.getElementById("current-stop-select");
+
+  let latestUploadedMission = null;
+  let uploadInProgress = false;
+
+  function safeFileName(name){
+    return String(name || "photo.jpg")
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+  }
+
+  async function getCurrentGuestForUpload(){
+    const deviceId = getOrCreateDeviceId();
+    const { data, error } = await supabaseClient
+      .from("guests")
+      .select("*")
+      .eq("device_id", deviceId)
+      .limit(1);
+
+    if(error) throw error;
+    if(!data || !data.length) throw new Error("Current Minion could not be found.");
+    return data[0];
+  }
+
+  async function getNextMissionNumber(){
+    const { count, error } = await supabaseClient
+      .from("missions")
+      .select("*", { count: "exact", head: true });
+
+    if(error) throw error;
+    return (count || 0) + 1;
+  }
+
+  async function uploadMissionPhoto(file){
+    if(uploadInProgress) return;
+    uploadInProgress = true;
+
+    try{
+      const guest = await getCurrentGuestForUpload();
+      const missionNumber = await getNextMissionNumber();
+      const completedAt = new Date().toISOString();
+      const currentStop = currentStopSelect?.value
+        || localStorage.getItem("gruCurrentStop")
+        || "Unknown location";
+
+      const extension = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const path = [
+        "operation-best-beer",
+        String(missionNumber).padStart(3, "0"),
+        `${guest.id}-${Date.now()}-${safeFileName(file.name || `group-photo.${extension}`)}`
+      ].join("/");
+
+      if(photoStatus) photoStatus.textContent = "Uploading mission evidence...";
+      if(takePhotoButton){
+        takePhotoButton.disabled = true;
+        takePhotoButton.textContent = "Uploading...";
+      }
+      if(restoreMission) restoreMission.classList.add("hidden");
+
+      const { error: uploadError } = await supabaseClient
+        .storage
+        .from(PHOTO_BUCKET)
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type || "image/jpeg"
+        });
+
+      if(uploadError) throw uploadError;
+
+      const { data: publicData } = supabaseClient
+        .storage
+        .from(PHOTO_BUCKET)
+        .getPublicUrl(path);
+
+      const photoUrl = publicData?.publicUrl || null;
+
+      const { data: mission, error: missionError } = await supabaseClient
+        .from("missions")
+        .insert({
+          mission_number: missionNumber,
+          guest_id: guest.id,
+          target_name: guest.name,
+          completed_at: completedAt,
+          location: currentStop,
+          photo_path: path,
+          photo_url: photoUrl
+        })
+        .select()
+        .single();
+
+      if(missionError){
+        await supabaseClient.storage.from(PHOTO_BUCKET).remove([path]);
+        throw missionError;
+      }
+
+      const { error: guestError } = await supabaseClient
+        .from("guests")
+        .update({
+          status: "completed",
+          hijacked: false,
+          completed: true
+        })
+        .eq("id", guest.id);
+
+      if(guestError) throw guestError;
+
+      latestUploadedMission = mission;
+      localStorage.setItem("lastCompletedMissionId", String(mission.id));
+
+      if(photoStatus) photoStatus.textContent = "Mission evidence secured.";
+      if(takePhotoButton){
+        takePhotoButton.textContent = "Photo Secured";
+        takePhotoButton.disabled = true;
+      }
+
+      setTimeout(() => {
+        if(restoreMission) restoreMission.classList.remove("hidden");
+      }, 500);
+
+      await renderLiveGuests();
+    }catch(error){
+      console.error("Mission photo upload failed:", error);
+      if(photoStatus) photoStatus.textContent = "Upload failed. Please try again.";
+      if(takePhotoButton){
+        takePhotoButton.disabled = false;
+        takePhotoButton.textContent = "Take Group Photo";
+      }
+      alert(`Photo upload failed: ${error.message || error}`);
+    }finally{
+      uploadInProgress = false;
+    }
+  }
+
+  photoInput?.addEventListener("change", async event => {
+    event.stopImmediatePropagation();
+    const file = photoInput.files && photoInput.files[0];
+    if(!file) return;
+    await uploadMissionPhoto(file);
+  }, true);
+
+  restoreMission?.addEventListener("click", () => {
+    latestUploadedMission = null;
+  }, true);
 })();
 </script>
 </body>
