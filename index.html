@@ -928,6 +928,147 @@
 .live-guest-remove span:last-child{
   color:#8f1837;font-weight:900;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase
 }
+
+/* ===== Shared Mission Debrief ===== */
+.mission-debrief-screen{
+  position:fixed;
+  inset:0;
+  z-index:10100;
+  overflow:auto;
+  padding:24px 18px 40px;
+  background:#ece9e2;
+  color:#171717;
+}
+.mission-debrief-screen.hidden{display:none!important}
+.debrief-header,
+.debrief-files,
+.debrief-footer{
+  width:min(100%,760px);
+  margin-left:auto;
+  margin-right:auto;
+}
+.debrief-header{
+  padding:28px 22px;
+  border:2px solid #171717;
+  background:#f8f6f1;
+  box-shadow:9px 9px 0 rgba(0,0,0,.12);
+  text-align:center;
+}
+.debrief-kicker{
+  color:#b3212d;
+  font-size:.7rem;
+  font-weight:950;
+  letter-spacing:.17em;
+  text-transform:uppercase;
+}
+.debrief-header h1{
+  margin:8px 0 5px;
+  font-size:clamp(2rem,8vw,3.25rem);
+  text-transform:uppercase;
+}
+.debrief-operation{
+  margin:0;
+  color:#5f5b54;
+  font-weight:750;
+}
+.debrief-summary{
+  width:min(100%,320px);
+  margin:24px auto 16px;
+  padding:15px;
+  border-top:2px solid #171717;
+  border-bottom:2px solid #171717;
+}
+.debrief-summary strong{
+  display:block;
+  font-size:2rem;
+}
+.debrief-summary span{
+  display:block;
+  font-size:.7rem;
+  font-weight:900;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+.debrief-story{
+  margin:12px 0 0;
+  line-height:1.6;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:1.05rem;
+}
+.debrief-files{
+  display:grid;
+  gap:18px;
+  margin-top:26px;
+}
+.debrief-file{
+  padding:18px;
+  border:2px solid #171717;
+  background:#f8f6f1;
+  box-shadow:7px 7px 0 rgba(0,0,0,.1);
+}
+.debrief-file-top{
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  align-items:flex-start;
+  margin-bottom:15px;
+}
+.debrief-mission-number{
+  color:#b3212d;
+  font-size:.72rem;
+  font-weight:950;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+}
+.debrief-file-meta{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-bottom:15px;
+}
+.debrief-file-meta div{
+  padding:10px;
+  border:1px solid #c6c0b5;
+  background:#fff;
+}
+.debrief-file-meta span{
+  display:block;
+  color:#6a665f;
+  font-size:.62rem;
+  font-weight:900;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+}
+.debrief-file-meta strong{
+  display:block;
+  margin-top:4px;
+  overflow-wrap:anywhere;
+}
+.debrief-photo{
+  display:block;
+  width:100%;
+  max-height:560px;
+  border:1px solid #171717;
+  background:#ddd;
+  object-fit:contain;
+}
+.debrief-empty{
+  padding:24px;
+  border:1px dashed #777;
+  text-align:center;
+}
+.debrief-footer{
+  padding:30px 10px 10px;
+  color:#5f5b54;
+  text-align:center;
+  font-size:.7rem;
+  font-weight:850;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+}
+@media(max-width:520px){
+  .debrief-file-meta{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
@@ -1270,7 +1411,27 @@
 <button id="verify-host-auth" type="button">Verify</button>
 </div>
 </section>
-</div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
+</div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><section aria-hidden="true" class="mission-debrief-screen hidden" id="mission-debrief-screen">
+<header class="debrief-header">
+<div class="debrief-kicker">GRU INDUSTRIES</div>
+<h1>Mission Debrief</h1>
+<p class="debrief-operation">Operation Best Beer · September 12, 2026</p>
+<div class="debrief-summary">
+<strong id="debrief-file-count">0</strong>
+<span>Recovered Mission Files</span>
+</div>
+<p class="debrief-story">
+      Scarlet believed these files were hers.<br/>
+      She was mistaken.
+    </p>
+</header>
+<main class="debrief-files" id="debrief-files">
+<p class="debrief-empty">Recovered mission files are loading...</p>
+</main>
+<footer class="debrief-footer">
+    End of Report · Gru Industries Intelligence Division
+  </footer>
+</section><script>
     /* ===== Supabase live guest registration ===== */
     const SUPABASE_URL = "https://ghwaubanhswjpocsmiwi.supabase.co";
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_c6PrOCrmlTQpC8sErrFjjA_BAJmIcDl";
@@ -2557,6 +2718,221 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   restoreMission?.addEventListener("click", () => {
     latestUploadedMission = null;
   }, true);
+})();
+
+
+/* ===== Shared operation state + Mission Debrief ===== */
+(function(){
+  const OPERATION_ID = 1;
+  const endOperationButton = document.getElementById("end-operation");
+  const startOperationButton = document.getElementById("start-operation");
+  const currentStopSelect = document.getElementById("current-stop-select");
+  const debriefScreen = document.getElementById("mission-debrief-screen");
+  const debriefFiles = document.getElementById("debrief-files");
+  const debriefCount = document.getElementById("debrief-file-count");
+
+  function formatCompletedTime(value){
+    if(!value) return "Unknown";
+    return new Date(value).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit"
+    });
+  }
+
+  async function loadMissionDebrief(){
+    const { data, error } = await supabaseClient
+      .from("missions")
+      .select("*")
+      .order("mission_number", { ascending: true });
+
+    if(error){
+      console.error("Unable to load Mission Debrief:", error);
+      debriefFiles.innerHTML =
+        '<p class="debrief-empty">Mission files could not be loaded.</p>';
+      return;
+    }
+
+    const missions = data || [];
+    debriefCount.textContent = String(missions.length);
+    debriefFiles.innerHTML = "";
+
+    if(!missions.length){
+      debriefFiles.innerHTML =
+        '<p class="debrief-empty">No recovered mission files were found.</p>';
+      return;
+    }
+
+    missions.forEach(mission => {
+      const card = document.createElement("article");
+      card.className = "debrief-file";
+
+      const location = mission.location || "Unknown location";
+      const target = mission.target_name || "Unknown Minion";
+      const photoUrl = mission.photo_url || "";
+
+      card.innerHTML = `
+        <div class="debrief-file-top">
+          <div class="debrief-mission-number">
+            Mission ${String(mission.mission_number).padStart(2,"0")}
+          </div>
+        </div>
+        <div class="debrief-file-meta">
+          <div>
+            <span>Target</span>
+            <strong>${escapeHtml(target)}</strong>
+          </div>
+          <div>
+            <span>Completed</span>
+            <strong>${formatCompletedTime(mission.completed_at)}</strong>
+          </div>
+          <div>
+            <span>Location</span>
+            <strong>${escapeHtml(location)}</strong>
+          </div>
+        </div>
+        ${photoUrl
+          ? `<img class="debrief-photo" src="${photoUrl}" alt="Recovered group photo for ${escapeHtml(target)}">`
+          : '<p class="debrief-empty">Photo unavailable.</p>'}
+      `;
+      debriefFiles.appendChild(card);
+    });
+  }
+
+  function escapeHtml(value){
+    return String(value)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  async function showMissionDebrief(){
+    await loadMissionDebrief();
+    debriefScreen.classList.remove("hidden");
+    debriefScreen.setAttribute("aria-hidden","false");
+    document.body.style.overflow = "hidden";
+    debriefScreen.scrollTop = 0;
+  }
+
+  function hideMissionDebrief(){
+    debriefScreen.classList.add("hidden");
+    debriefScreen.setAttribute("aria-hidden","true");
+    document.body.style.overflow = "";
+  }
+
+  async function setSharedOperationStatus(status){
+    const payload = {
+      id: OPERATION_ID,
+      status,
+      current_stop: currentStopSelect?.value || "ISM Brewing & Kitchen",
+      updated_at: new Date().toISOString()
+    };
+
+    const { error } = await supabaseClient
+      .from("operation_state")
+      .upsert(payload, { onConflict: "id" });
+
+    if(error) throw error;
+  }
+
+  async function loadSharedOperationState(){
+    const { data, error } = await supabaseClient
+      .from("operation_state")
+      .select("*")
+      .eq("id", OPERATION_ID)
+      .limit(1);
+
+    if(error){
+      console.error("Unable to load operation state:", error);
+      return;
+    }
+
+    if(data && data.length){
+      if(currentStopSelect && data[0].current_stop){
+        currentStopSelect.value = data[0].current_stop;
+      }
+      if(data[0].status === "ended") showMissionDebrief();
+      else hideMissionDebrief();
+    }
+  }
+
+  endOperationButton?.addEventListener("click", async event => {
+    event.stopImmediatePropagation();
+    if(!confirm("End Operation? Scarlet calls will stop and the Mission Debrief will become available to everyone.")){
+      return;
+    }
+
+    try{
+      await setSharedOperationStatus("ended");
+      localStorage.setItem("gruOperationStatus","ended");
+      await showMissionDebrief();
+    }catch(error){
+      console.error("Unable to end operation:", error);
+      alert("The operation could not be ended.");
+    }
+  }, true);
+
+  startOperationButton?.addEventListener("click", async () => {
+    try{
+      await setSharedOperationStatus("active");
+      hideMissionDebrief();
+    }catch(error){
+      console.error("Unable to start shared operation:", error);
+    }
+  }, true);
+
+  currentStopSelect?.addEventListener("change", async () => {
+    const status = localStorage.getItem("gruOperationStatus") || "active";
+    try{
+      await setSharedOperationStatus(status);
+    }catch(error){
+      console.error("Unable to update current stop:", error);
+    }
+  });
+
+  supabaseClient
+    .channel("operation-best-beer-state")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "operation_state",
+        filter: `id=eq.${OPERATION_ID}`
+      },
+      payload => {
+        const row = payload.new;
+        if(!row) return;
+
+        if(currentStopSelect && row.current_stop){
+          currentStopSelect.value = row.current_stop;
+        }
+
+        if(row.status === "ended") showMissionDebrief();
+        else hideMissionDebrief();
+      }
+    )
+    .subscribe();
+
+  supabaseClient
+    .channel("operation-best-beer-missions")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "missions"
+      },
+      () => {
+        if(!debriefScreen.classList.contains("hidden")){
+          loadMissionDebrief();
+        }
+      }
+    )
+    .subscribe();
+
+  window.addEventListener("load", loadSharedOperationState);
 })();
 </script>
 </body>
