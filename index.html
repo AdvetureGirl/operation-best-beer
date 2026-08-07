@@ -1094,6 +1094,24 @@
 
 #debrief-host-controls{grid-template-columns:1fr 1fr 1fr}
 @media(max-width:620px){#debrief-host-controls{grid-template-columns:1fr}}
+
+.scarlet-scheduler-card{margin:18px 0;padding:18px;border:1px solid #a8a29a;background:#fff}
+.scheduler-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.scheduler-head h3{margin:5px 0 0;font-size:1.05rem}
+.scheduler-status-badge{padding:6px 9px;border:1px solid #9b958b;background:#eeeae2;font-size:.62rem;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+.scheduler-status-badge.active{background:#dcebd9;border-color:#477847;color:#234f23}
+.scheduler-status-badge.waiting{background:#f4e8c9;border-color:#a47c1d;color:#6b4c06}
+.scheduler-status-badge.paused{background:#ead7dc;border-color:#8f1837;color:#6f1028}
+.scheduler-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}
+.scheduler-grid div,.scheduler-progress{padding:12px;border:1px solid #c6c0b5;background:#f8f6f1}
+.scheduler-grid span,.scheduler-progress span{display:block;color:#6a665f;font-size:.62rem;font-weight:900;letter-spacing:.09em;text-transform:uppercase}
+.scheduler-grid strong,.scheduler-progress strong{display:block;margin-top:4px}
+.scheduler-buttons{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+.scheduler-buttons button{min-height:44px;border:1px solid #171717;background:#171717;color:#fff;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.scheduler-buttons button:nth-child(1),.scheduler-buttons button:nth-child(2){background:#efebe3;color:#171717}
+.scheduler-progress{margin-top:10px}
+.running-scheduler.hidden,.first-call-controls.hidden{display:none!important}
+@media(max-width:520px){.scheduler-grid,.scheduler-buttons{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -1336,7 +1354,36 @@
 <span>Reserved Target</span>
 <strong id="reserved-target-name">None</strong>
 </div>
-<div class="host-actions">
+<section class="scarlet-scheduler-card" id="scarlet-scheduler-card">
+<div class="scheduler-head">
+<div>
+<div class="host-kicker">SCARLET SCHEDULER</div>
+<h3>Automatic Calls</h3>
+</div>
+<span class="scheduler-status-badge" id="scheduler-status-badge">Waiting</span>
+</div>
+<div class="first-call-controls" id="first-call-controls">
+<div class="scheduler-grid">
+<div><span>First Call</span><strong id="first-call-time">12:00 PM</strong></div>
+<div><span>Starts In</span><strong id="first-call-countdown">--:--</strong></div>
+</div>
+<div class="scheduler-buttons">
+<button id="delay-5" type="button">+5 min</button>
+<button id="delay-10" type="button">+10 min</button>
+<button id="send-now" type="button">Send Now</button>
+</div>
+</div>
+<div class="running-scheduler hidden" id="running-scheduler">
+<div class="scheduler-grid">
+<div><span>Status</span><strong id="scheduler-status-text">Running</strong></div>
+<div><span>Next Call</span><strong id="next-call-countdown">--:--</strong></div>
+</div>
+<div class="scheduler-progress">
+<span>Today's Goal</span>
+<strong id="scheduler-progress-text">0 / 0 Minions Completed</strong>
+</div>
+</div>
+</section><div class="host-actions">
 <button id="start-operation" type="button">Start Operation</button>
 <button id="host-next-call" type="button">Next Scarlet Call</button>
 <button class="host-secondary" id="pause-operation" type="button">Pause Operation</button>
@@ -1357,10 +1404,7 @@
 </div></details>
 <button class="host-link-button" id="exit-host-mode" type="button">Exit Host Mode</button>
 <p class="host-access-footer">Access Level: Commander</p>
-</section><button class="scarlet-test-btn" id="test-scarlet-call" type="button">Test Scarlet Call</button><div class="scarlet-target-test">
-<label for="scarlet-test-target">Test selected Minion</label>
-<input id="scarlet-test-target" maxlength="40" type="text" value="Kevin"/>
-</div><p id="audio-upgrade-note" style="font-size:.72rem;color:#6a6863;text-align:center;margin:8px 0 0;">Production sound test: ringtone, connection cues, and speaker-volume transition enabled.</p><button class="switch-minion-btn" id="switch-minion-btn" type="button">
+</section><p id="audio-upgrade-note" style="font-size:.72rem;color:#6a6863;text-align:center;margin:8px 0 0;">Production sound test: ringtone, connection cues, and speaker-volume transition enabled.</p><button class="switch-minion-btn" id="switch-minion-btn" type="button">
           Switch Minion
         </button><p class="footer">
 
@@ -1861,6 +1905,14 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   let currentTarget="Kevin";
   let callStarted=false;
   let sequence=Number(localStorage.getItem("scarletRecordedCallSequence_v1")||"0");
+
+  window.addEventListener("scarletSchedulerTriggerCall", event=>{
+    currentTarget = event.detail?.guest?.name || "Minion";
+    stopAudio(ringtone);
+    p2Open();
+    ringtone.play().catch(()=>{});
+  });
+
   window.addEventListener("scarletResetSequence",()=>{
     sequence=0;
     localStorage.setItem("scarletRecordedCallSequence_v1","0");
@@ -2359,6 +2411,24 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
     if(testTargetInput) testTargetInput.value = data.name;
     return data;
   }
+
+
+  async function triggerLiveScarletCall(){
+    const status = localStorage.getItem("gruOperationStatus") || "ready";
+    if(status !== "active") return false;
+
+    if(liveReservedGuest || localStorage.getItem("gruLiveReservedGuestId")) return false;
+
+    const guest = await reserveRandomGuest();
+    if(!guest) return false;
+
+    window.dispatchEvent(new CustomEvent("scarletSchedulerTriggerCall", {
+      detail: { guest }
+    }));
+    return true;
+  }
+
+  window.triggerLiveScarletCall = triggerLiveScarletCall;
 
   async function releaseLiveTarget(){
     let guestId = liveReservedGuest?.id || localStorage.getItem("gruLiveReservedGuestId");
@@ -3210,6 +3280,177 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
     panel?.classList.remove("hidden");
     setTimeout(() => panel?.scrollIntoView({behavior:"smooth", block:"start"}), 50);
   });
+})();
+
+
+/* ===== Adaptive Scarlet Scheduler ===== */
+(function(){
+  const FIRST_CALL_HOUR=12, FIRST_CALL_MINUTE=0;
+  const LAST_CALL_HOUR=16, LAST_CALL_MINUTE=35;
+
+  const startOperation=document.getElementById("start-operation");
+  const pauseOperation=document.getElementById("pause-operation");
+  const firstCard=document.getElementById("first-call-controls");
+  const runningCard=document.getElementById("running-scheduler");
+  const firstTimeEl=document.getElementById("first-call-time");
+  const firstCountdownEl=document.getElementById("first-call-countdown");
+  const nextCountdownEl=document.getElementById("next-call-countdown");
+  const statusBadge=document.getElementById("scheduler-status-badge");
+  const statusText=document.getElementById("scheduler-status-text");
+  const progressText=document.getElementById("scheduler-progress-text");
+  const delay5=document.getElementById("delay-5");
+  const delay10=document.getElementById("delay-10");
+  const sendNow=document.getElementById("send-now");
+
+  function dayTs(h,m){const d=new Date();d.setHours(h,m,0,0);return d.getTime()}
+  function fmtTime(ts){return new Date(ts).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}
+  function fmtCountdown(ms){
+    if(ms<=0)return"00:00";
+    const t=Math.floor(ms/1000),m=Math.floor(t/60),s=t%60;
+    return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  }
+  function getFirstCallAt(){
+    let v=Number(localStorage.getItem("scarletFirstCallAt")||"0");
+    if(!v){v=dayTs(FIRST_CALL_HOUR,FIRST_CALL_MINUTE);localStorage.setItem("scarletFirstCallAt",String(v))}
+    return v;
+  }
+  function setFirstCallAt(v){localStorage.setItem("scarletFirstCallAt",String(v));render()}
+  function firstDone(){return localStorage.getItem("scarletFirstCallDone")==="true"}
+  function setFirstDone(){localStorage.setItem("scarletFirstCallDone","true")}
+  function getNextAt(){return Number(localStorage.getItem("scarletNextCallAt")||"0")}
+  function setNextAt(v){localStorage.setItem("scarletNextCallAt",String(v))}
+  function clearNext(){localStorage.removeItem("scarletNextCallAt")}
+
+  async function stats(){
+    const {data,error}=await supabaseClient.from("guests").select("status,completed");
+    if(error)return{eligible:0,completed:0,active:0};
+    const rows=(data||[]).filter(r=>r.status!=="left");
+    return{
+      eligible:rows.filter(r=>r.completed!==true&&r.status==="available").length,
+      completed:rows.filter(r=>r.completed===true).length,
+      active:rows.length
+    };
+  }
+
+  async function updateProgress(){
+    const s=await stats();
+    if(progressText)progressText.textContent=`${s.completed} / ${s.active} Minions Completed`;
+  }
+
+  async function scheduleNext(){
+    const s=await stats();
+    if(s.eligible<=0){clearNext();render();return}
+    const remaining=Math.max(0,dayTs(LAST_CALL_HOUR,LAST_CALL_MINUTE)-Date.now());
+    const base=remaining/Math.max(1,s.eligible);
+    const bounded=Math.max(7*60000,Math.min(22*60000,base));
+    const jitter=.82+Math.random()*.36;
+    setNextAt(Date.now()+Math.round(bounded*jitter));
+    render();
+  }
+
+  async function triggerCall(){
+    if(typeof window.triggerLiveScarletCall!=="function")return false;
+    const ok=await window.triggerLiveScarletCall();
+    if(ok&&!firstDone()){
+      setFirstDone();
+      clearNext();
+    }
+    render();
+    return ok;
+  }
+
+  async function tick(){
+    const status=localStorage.getItem("gruOperationStatus")||"ready";
+    if(status!=="active"){render();return}
+
+    if(!firstDone()){
+      if(Date.now()>=getFirstCallAt())await triggerCall();
+      render();
+      return;
+    }
+
+    const reserved=localStorage.getItem("gruLiveReservedGuestId");
+    if(reserved){
+      if(statusText)statusText.textContent="Waiting for current mission...";
+      if(nextCountdownEl)nextCountdownEl.textContent="--:--";
+      updateProgress();
+      return;
+    }
+
+    let nextAt=getNextAt();
+    if(!nextAt){await scheduleNext();nextAt=getNextAt()}
+    if(nextAt&&Date.now()>=nextAt){
+      const ok=await triggerCall();
+      if(ok)clearNext();
+    }
+    render();
+  }
+
+  function render(){
+    const status=localStorage.getItem("gruOperationStatus")||"ready";
+
+    if(!firstDone()){
+      firstCard?.classList.remove("hidden");
+      runningCard?.classList.add("hidden");
+      const at=getFirstCallAt();
+      if(firstTimeEl)firstTimeEl.textContent=fmtTime(at);
+      if(firstCountdownEl)firstCountdownEl.textContent=fmtCountdown(at-Date.now());
+      if(statusBadge){
+        statusBadge.textContent=status==="active"?"Armed":"Waiting";
+        statusBadge.className="scheduler-status-badge "+(status==="active"?"active":"waiting");
+      }
+    }else{
+      firstCard?.classList.add("hidden");
+      runningCard?.classList.remove("hidden");
+      const reserved=localStorage.getItem("gruLiveReservedGuestId");
+      const nextAt=getNextAt();
+      if(statusText)statusText.textContent=reserved?"Waiting for current mission...":(status==="active"?"Running":"Paused");
+      if(nextCountdownEl)nextCountdownEl.textContent=reserved?"--:--":(nextAt?fmtCountdown(nextAt-Date.now()):"Calculating...");
+      if(statusBadge){
+        statusBadge.textContent=status==="active"?"Running":"Paused";
+        statusBadge.className="scheduler-status-badge "+(status==="active"?"active":"paused");
+      }
+    }
+    updateProgress();
+  }
+
+  delay5?.addEventListener("click",()=>setFirstCallAt(getFirstCallAt()+5*60000));
+  delay10?.addEventListener("click",()=>setFirstCallAt(getFirstCallAt()+10*60000));
+  sendNow?.addEventListener("click",async()=>{
+    if((localStorage.getItem("gruOperationStatus")||"ready")!=="active"){
+      alert("Start the operation first.");return;
+    }
+    setFirstCallAt(Date.now());
+    await triggerCall();
+  });
+
+  startOperation?.addEventListener("click",()=>{
+    localStorage.setItem("scarletFirstCallDone","false");
+    localStorage.setItem("scarletFirstCallAt",String(dayTs(FIRST_CALL_HOUR,FIRST_CALL_MINUTE)));
+    clearNext();
+    render();
+  },true);
+
+  pauseOperation?.addEventListener("click",()=>setTimeout(render,50));
+
+  window.addEventListener("gruGuestCompletedLive",async()=>{
+    if(firstDone()){clearNext();await scheduleNext()}
+    render();
+  });
+  window.addEventListener("gruGuestRegisteredLive",async()=>{
+    if(firstDone()){clearNext();await scheduleNext()}
+    render();
+  });
+  window.addEventListener("scarletResetSequence",()=>{
+    localStorage.setItem("scarletFirstCallDone","false");
+    localStorage.setItem("scarletFirstCallAt",String(dayTs(FIRST_CALL_HOUR,FIRST_CALL_MINUTE)));
+    clearNext();
+    render();
+  });
+
+  setInterval(tick,1000);
+  window.addEventListener("load",render);
+  render();
 })();
 </script>
 </body>
