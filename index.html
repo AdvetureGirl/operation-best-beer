@@ -1393,7 +1393,6 @@
 </div></div>
 </section><div class="host-actions">
 <button id="start-operation" type="button">Start Operation</button>
-
 <button class="host-secondary" id="pause-operation" type="button">Pause Operation</button>
 <button class="host-secondary" id="release-target" type="button">Release Target</button>
 <button class="host-danger" id="end-operation" type="button">End Operation</button>
@@ -3326,6 +3325,8 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   function setFirstCallAt(v){localStorage.setItem("scarletFirstCallAt",String(v));render()}
   function firstDone(){return localStorage.getItem("scarletFirstCallDone")==="true"}
   function setFirstDone(){localStorage.setItem("scarletFirstCallDone","true")}
+  function schedulerArmed(){return localStorage.getItem("scarletSchedulerArmed")==="true"}
+  function setSchedulerArmed(value){localStorage.setItem("scarletSchedulerArmed", value ? "true" : "false")}
   function getNextAt(){return Number(localStorage.getItem("scarletNextCallAt")||"0")}
   function setNextAt(v){localStorage.setItem("scarletNextCallAt",String(v))}
   function clearNext(){localStorage.removeItem("scarletNextCallAt")}
@@ -3370,7 +3371,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
 
   async function tick(){
     const status=localStorage.getItem("gruOperationStatus")||"ready";
-    if(status!=="active"){render();return}
+    if(status!=="active" || !schedulerArmed()){render();return}
 
     if(!firstDone()){
       if(Date.now()>=getFirstCallAt())await triggerCall();
@@ -3397,6 +3398,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
 
   function render(){
     const status=localStorage.getItem("gruOperationStatus")||"ready";
+    const armed=schedulerArmed();
 
     if(!firstDone()){
       firstCard?.classList.remove("hidden");
@@ -3405,8 +3407,9 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
       if(firstTimeEl)firstTimeEl.textContent=fmtTime(at);
       if(firstCountdownEl)firstCountdownEl.textContent=fmtCountdown(at-Date.now());
       if(statusBadge){
-        statusBadge.textContent=status==="active"?"Armed":"Waiting";
-        statusBadge.className="scheduler-status-badge "+(status==="active"?"active":"waiting");
+        const isArmed = status==="active" && armed;
+        statusBadge.textContent=isArmed?"Armed":"Waiting";
+        statusBadge.className="scheduler-status-badge "+(isArmed?"active":"waiting");
       }
     }else{
       firstCard?.classList.add("hidden");
@@ -3451,7 +3454,17 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   });
 
   startOperation?.addEventListener("click",()=>{
+    localStorage.removeItem("gruLiveReservedGuestId");
+    localStorage.removeItem("gruLiveReservedGuestName");
+    localStorage.removeItem("gruReservedTarget");
+    localStorage.removeItem("scarletPendingHijackTarget");
+    localStorage.removeItem("scarletPendingHijackTimestamp");
+
+    const reservedName=document.getElementById("reserved-target-name");
+    if(reservedName) reservedName.textContent="None";
+
     localStorage.setItem("scarletFirstCallDone","false");
+    setSchedulerArmed(true);
 
     const noon = dayTs(FIRST_CALL_HOUR,FIRST_CALL_MINUTE);
     const firstAt = Date.now() < noon
@@ -3465,6 +3478,12 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
 
   pauseOperation?.addEventListener("click",()=>setTimeout(render,50));
 
+  document.getElementById("end-operation")?.addEventListener("click",()=>{
+    setSchedulerArmed(false);
+    clearNext();
+    render();
+  },true);
+
   window.addEventListener("gruGuestCompletedLive",async()=>{
     if(firstDone()){clearNext();await scheduleNext()}
     render();
@@ -3475,6 +3494,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   });
   window.addEventListener("scarletResetSequence",()=>{
     localStorage.setItem("scarletFirstCallDone","false");
+    setSchedulerArmed(false);
 
     const noon = dayTs(FIRST_CALL_HOUR,FIRST_CALL_MINUTE);
     const firstAt = Date.now() < noon
