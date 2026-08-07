@@ -2420,14 +2420,26 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   }
 
 
-  async function triggerLiveScarletCall(){
+  async function triggerLiveScarletCall(options = {}){
     const status = localStorage.getItem("gruOperationStatus") || "ready";
     if(status !== "active") return false;
+
+    const forceNow = options.force === true || localStorage.getItem("scarletForceNextCall")==="true";
+    const firstDone = localStorage.getItem("scarletFirstCallDone")==="true";
+    const firstAt = Number(localStorage.getItem("scarletFirstCallAt")||"0");
+
+    // Hard gate: before Call 1, absolutely no reservation is allowed
+    // until the countdown is due unless the host explicitly uses Send Now.
+    if(!firstDone && !forceNow){
+      if(!firstAt || Date.now() < firstAt) return false;
+    }
 
     if(liveReservedGuest || localStorage.getItem("gruLiveReservedGuestId")) return false;
 
     const guest = await reserveRandomGuest();
     if(!guest) return false;
+
+    localStorage.removeItem("scarletForceNextCall");
 
     window.dispatchEvent(new CustomEvent("scarletSchedulerTriggerCall", {
       detail: { guest }
@@ -2694,6 +2706,14 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   window.addEventListener("gruGuestCompletedLive", async event => {
     clearHostReservedTargetIfMatches(event.detail);
     await renderLiveGuests();
+  });
+
+  window.addEventListener("scarletMasterStartComplete", () => {
+    liveReservedGuest = null;
+    localStorage.removeItem("gruLiveReservedGuestId");
+    localStorage.removeItem("gruLiveReservedGuestName");
+    localStorage.removeItem("gruReservedTarget");
+    if(reservedTargetName) reservedTargetName.textContent = "None";
   });
 
   // Restore a reserved target after host refresh.
@@ -3358,13 +3378,19 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
     render();
   }
 
-  async function triggerCall(){
+  async function triggerCall(force=false){
     if(typeof window.triggerLiveScarletCall!=="function")return false;
-    const ok=await window.triggerLiveScarletCall();
+
+    if(force) localStorage.setItem("scarletForceNextCall","true");
+
+    const ok=await window.triggerLiveScarletCall({force});
     if(ok&&!firstDone()){
       setFirstDone();
       clearNext();
     }
+
+    if(!ok && force) localStorage.removeItem("scarletForceNextCall");
+
     render();
     return ok;
   }
@@ -3433,7 +3459,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
       alert("Start the operation first.");return;
     }
     setFirstCallAt(Date.now());
-    await triggerCall();
+    await triggerCall(true);
   });
 
   sendNowRunning?.addEventListener("click",async()=>{
@@ -3447,7 +3473,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
     }
 
     clearNext();
-    const ok = await triggerCall();
+    const ok = await triggerCall(true);
     if(!ok){
       alert("No eligible Minion is currently available.");
     }
@@ -3529,6 +3555,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
       localStorage.removeItem("scarletPendingHijackTarget");
       localStorage.removeItem("scarletPendingHijackTimestamp");
       localStorage.removeItem("scarletNextCallAt");
+      localStorage.removeItem("scarletForceNextCall");
 
       // Reset Scarlet audio sequence first.
       window.dispatchEvent(new Event("scarletResetSequence"));
