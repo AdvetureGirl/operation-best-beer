@@ -1112,6 +1112,12 @@
 .scheduler-progress{margin-top:10px}
 .running-scheduler.hidden,.first-call-controls.hidden{display:none!important}
 @media(max-width:520px){.scheduler-grid,.scheduler-buttons{grid-template-columns:1fr}}
+
+.scheduler-running-actions{margin-top:10px}
+.scheduler-running-actions button{
+  width:100%;min-height:44px;border:1px solid #171717;background:#171717;color:#fff;
+  font-weight:900;letter-spacing:.06em;text-transform:uppercase
+}
 </style>
 </head>
 <body>
@@ -1382,10 +1388,12 @@
 <span>Today's Goal</span>
 <strong id="scheduler-progress-text">0 / 0 Minions Completed</strong>
 </div>
-</div>
+<div class="scheduler-running-actions">
+<button id="send-now-running" type="button">Send Now</button>
+</div></div>
 </section><div class="host-actions">
 <button id="start-operation" type="button">Start Operation</button>
-<button id="host-next-call" type="button">Next Scarlet Call</button>
+
 <button class="host-secondary" id="pause-operation" type="button">Pause Operation</button>
 <button class="host-secondary" id="release-target" type="button">Release Target</button>
 <button class="host-danger" id="end-operation" type="button">End Operation</button>
@@ -3301,6 +3309,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   const delay5=document.getElementById("delay-5");
   const delay10=document.getElementById("delay-10");
   const sendNow=document.getElementById("send-now");
+  const sendNowRunning=document.getElementById("send-now-running");
 
   function dayTs(h,m){const d=new Date();d.setHours(h,m,0,0);return d.getTime()}
   function fmtTime(ts){return new Date(ts).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}
@@ -3424,9 +3433,32 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
     await triggerCall();
   });
 
+  sendNowRunning?.addEventListener("click",async()=>{
+    if((localStorage.getItem("gruOperationStatus")||"ready")!=="active"){
+      alert("Start the operation first.");return;
+    }
+
+    if(localStorage.getItem("gruLiveReservedGuestId")){
+      alert("A current mission is still in progress.");
+      return;
+    }
+
+    clearNext();
+    const ok = await triggerCall();
+    if(!ok){
+      alert("No eligible Minion is currently available.");
+    }
+  });
+
   startOperation?.addEventListener("click",()=>{
     localStorage.setItem("scarletFirstCallDone","false");
-    localStorage.setItem("scarletFirstCallAt",String(dayTs(FIRST_CALL_HOUR,FIRST_CALL_MINUTE)));
+
+    const noon = dayTs(FIRST_CALL_HOUR,FIRST_CALL_MINUTE);
+    const firstAt = Date.now() < noon
+      ? noon
+      : Date.now() + (5 * 60 * 1000);
+
+    localStorage.setItem("scarletFirstCallAt",String(firstAt));
     clearNext();
     render();
   },true);
@@ -3443,7 +3475,13 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   });
   window.addEventListener("scarletResetSequence",()=>{
     localStorage.setItem("scarletFirstCallDone","false");
-    localStorage.setItem("scarletFirstCallAt",String(dayTs(FIRST_CALL_HOUR,FIRST_CALL_MINUTE)));
+
+    const noon = dayTs(FIRST_CALL_HOUR,FIRST_CALL_MINUTE);
+    const firstAt = Date.now() < noon
+      ? noon
+      : Date.now() + (5 * 60 * 1000);
+
+    localStorage.setItem("scarletFirstCallAt",String(firstAt));
     clearNext();
     render();
   });
