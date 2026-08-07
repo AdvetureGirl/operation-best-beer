@@ -3510,6 +3510,126 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   window.addEventListener("load",render);
   render();
 })();
+
+
+/* ===== Master Start Operation controller ===== */
+(function(){
+  let masterStartRunning = false;
+
+  async function masterStartOperation(){
+    if(masterStartRunning) return;
+    masterStartRunning = true;
+
+    try{
+      // Browser state
+      localStorage.setItem("gruOperationStatus","active");
+      localStorage.removeItem("gruLiveReservedGuestId");
+      localStorage.removeItem("gruLiveReservedGuestName");
+      localStorage.removeItem("gruReservedTarget");
+      localStorage.removeItem("scarletPendingHijackTarget");
+      localStorage.removeItem("scarletPendingHijackTimestamp");
+      localStorage.removeItem("scarletNextCallAt");
+
+      // Reset Scarlet audio sequence first.
+      window.dispatchEvent(new Event("scarletResetSequence"));
+
+      // Then explicitly arm the scheduler for this fresh session.
+      localStorage.setItem("scarletFirstCallDone","false");
+      localStorage.setItem("scarletSchedulerArmed","true");
+
+      const now = new Date();
+      const noon = new Date();
+      noon.setHours(12,0,0,0);
+
+      const firstAt = now.getTime() < noon.getTime()
+        ? noon.getTime()
+        : Date.now() + (5 * 60 * 1000);
+
+      localStorage.setItem("scarletFirstCallAt",String(firstAt));
+
+      // Shared guest state: reset active guests only.
+      const { error: guestError } = await supabaseClient
+        .from("guests")
+        .update({
+          status:"available",
+          hijacked:false,
+          completed:false
+        })
+        .neq("status","left");
+
+      if(guestError) throw guestError;
+
+      // Shared operation state.
+      const stop = document.getElementById("current-stop-select")?.value || "ISM Brewing & Kitchen";
+      const { error: stateError } = await supabaseClient
+        .from("operation_state")
+        .upsert({
+          id:1,
+          status:"active",
+          current_stop:stop,
+          updated_at:new Date().toISOString()
+        }, { onConflict:"id" });
+
+      if(stateError) throw stateError;
+
+      // Visible host UI
+      const reservedName = document.getElementById("reserved-target-name");
+      if(reservedName) reservedName.textContent = "None";
+
+      const opBadge = document.getElementById("operation-status-badge");
+      if(opBadge){
+        opBadge.textContent="Active";
+        opBadge.className="operation-status-badge active";
+      }
+
+      const schedulerBadge = document.getElementById("scheduler-status-badge");
+      if(schedulerBadge){
+        schedulerBadge.textContent="Armed";
+        schedulerBadge.className="scheduler-status-badge active";
+      }
+
+      const firstTime = document.getElementById("first-call-time");
+      if(firstTime){
+        firstTime.textContent = new Date(firstAt).toLocaleTimeString([],{
+          hour:"numeric",
+          minute:"2-digit"
+        });
+      }
+
+      const firstControls = document.getElementById("first-call-controls");
+      const runningControls = document.getElementById("running-scheduler");
+      firstControls?.classList.remove("hidden");
+      runningControls?.classList.add("hidden");
+
+      document.getElementById("mission-debrief-screen")?.classList.add("hidden");
+      document.body.style.overflow="";
+
+      if(typeof renderLiveGuests==="function"){
+        await renderLiveGuests();
+      }
+
+      window.dispatchEvent(new Event("scarletMasterStartComplete"));
+    }catch(error){
+      console.error("Master Start Operation failed:",error);
+      alert(`Start Operation failed: ${error.message || error}`);
+      localStorage.setItem("scarletSchedulerArmed","false");
+    }finally{
+      masterStartRunning=false;
+    }
+  }
+
+  // Document capture fires before the older target-level handlers.
+  document.addEventListener("click",event=>{
+    const button=event.target.closest?.("#start-operation");
+    if(!button) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+
+    masterStartOperation();
+  },true);
+})();
 </script>
 </body>
 </html>
