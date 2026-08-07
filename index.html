@@ -1091,6 +1091,9 @@
 @media(max-width:520px){
   .debrief-host-controls{grid-template-columns:1fr}
 }
+
+#debrief-host-controls{grid-template-columns:1fr 1fr 1fr}
+@media(max-width:620px){#debrief-host-controls{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -1446,7 +1449,7 @@
       Scarlet believed these files were hers.<br/>
       She was mistaken.
     </p>
-<div class="debrief-host-controls hidden" id="debrief-host-controls">
+<div class="debrief-host-controls hidden" id="debrief-host-controls"><button id="return-host-panel" type="button">Return to Host Panel</button>
 <button id="resume-operation" type="button">Resume Operation</button>
 <button id="prepare-deployment-debrief" type="button">Prepare for Deployment</button>
 </div></header>
@@ -1535,16 +1538,17 @@
       const completedEl = document.getElementById("completed-count");
       const listEl = document.getElementById("test-guest-list");
 
-      const completed = rows.filter(row => row.completed).length;
-      const remaining = rows.filter(row => !row.completed).length;
+      const activeRows = rows.filter(row => row.status !== "left");
+      const completed = activeRows.filter(row => row.completed).length;
+      const remaining = activeRows.filter(row => !row.completed && row.status === "available").length;
 
-      if (registeredEl) registeredEl.textContent = String(rows.length);
+      if (registeredEl) registeredEl.textContent = String(activeRows.length);
       if (remainingEl) remainingEl.textContent = String(remaining);
       if (completedEl) completedEl.textContent = String(completed);
 
       if (listEl) {
         listEl.innerHTML = "";
-        rows.forEach(row => {
+        rows.filter(row => row.status !== "left").forEach(row => {
           const chip = document.createElement("span");
           chip.className = "test-guest-chip";
           if (row.completed) chip.classList.add("completed");
@@ -1557,7 +1561,7 @@
       const removalList = document.getElementById("live-guest-removal-list");
       if (removalList) {
         removalList.innerHTML = "";
-        rows.forEach(row => {
+        rows.filter(row => row.status !== "left").forEach(row => {
           const button = document.createElement("button");
           button.type = "button";
           button.className = "live-guest-remove";
@@ -1572,7 +1576,10 @@
 
             const { error } = await supabaseClient
               .from("guests")
-              .delete()
+              .update({
+                status: "left",
+                hijacked: false
+              })
               .eq("id", row.id);
 
             if (error) {
@@ -2319,7 +2326,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
       .order("registered_at", { ascending: true });
 
     if(error) throw error;
-    return (data || []).filter(row => row.status !== "reserved");
+    return (data || []).filter(row => row.status === "available");
   }
 
   async function reserveRandomGuest(){
@@ -2426,6 +2433,21 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
 
     hijackOverlay?.classList.remove("hidden");
     hijackOverlay?.setAttribute("aria-hidden", "false");
+  }
+
+
+  async function syncCurrentGuestState(){
+    const row = await loadCurrentGuestRow();
+    if(!row) return;
+
+    currentGuestRow = row;
+
+    if(row.hijacked === true && row.status === "hijacked"){
+      showRemoteHijack(row);
+    } else if(row.completed === true || row.status === "completed"){
+      hijackOverlay?.classList.add("hidden");
+      hijackOverlay?.setAttribute("aria-hidden","true");
+    }
   }
 
   async function completeRemoteMission(){
@@ -2621,8 +2643,18 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
     await loadCurrentGuestRow();
     await restoreReservedTarget();
     await subscribeToCurrentGuest();
+    await syncCurrentGuestState();
     await renderLiveGuests();
   });
+
+  document.addEventListener("visibilitychange", async () => {
+    if(document.visibilityState === "visible"){
+      await syncCurrentGuestState();
+    }
+  });
+
+  window.addEventListener("focus", syncCurrentGuestState);
+  window.addEventListener("pageshow", syncCurrentGuestState);
 })();
 
 
@@ -2872,6 +2904,11 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
     await loadMissionDebrief();
     debriefScreen.classList.remove("hidden");
     debriefScreen.setAttribute("aria-hidden","false");
+
+    if(localStorage.getItem("gruHostMode") === "true"){
+      document.getElementById("debrief-host-controls")?.classList.remove("hidden");
+    }
+
     document.body.style.overflow = "hidden";
     debriefScreen.scrollTop = 0;
   }
@@ -3003,6 +3040,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   const prepareButton = document.getElementById("prepare-deployment");
   const prepareDebriefButton = document.getElementById("prepare-deployment-debrief");
   const resumeButton = document.getElementById("resume-operation");
+  const returnHostPanelButton = document.getElementById("return-host-panel");
   const debriefTrigger = document.getElementById("debrief-host-trigger");
   const debriefControls = document.getElementById("debrief-host-controls");
   const debriefScreen = document.getElementById("mission-debrief-screen");
@@ -3162,6 +3200,16 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   prepareButton?.addEventListener("click", prepareForDeployment);
   prepareDebriefButton?.addEventListener("click", prepareForDeployment);
   resumeButton?.addEventListener("click", resumeOperation);
+
+  returnHostPanelButton?.addEventListener("click", () => {
+    debriefScreen?.classList.add("hidden");
+    debriefScreen?.setAttribute("aria-hidden","true");
+    document.body.style.overflow = "";
+
+    const panel = document.getElementById("host-control-panel");
+    panel?.classList.remove("hidden");
+    setTimeout(() => panel?.scrollIntoView({behavior:"smooth", block:"start"}), 50);
+  });
 })();
 </script>
 </body>
