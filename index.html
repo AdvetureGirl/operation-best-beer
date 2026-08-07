@@ -1488,14 +1488,11 @@
       if (lookupError) throw lookupError;
 
       if (existing && existing.length) {
+        // Returning device: preserve mission state (completed/reserved/hijacked).
+        // Only refresh the displayed Minion name.
         const { error } = await supabaseClient
           .from("guests")
-          .update({
-            name,
-            status: "available",
-            hijacked: false,
-            completed: false
-          })
+          .update({ name })
           .eq("id", existing[0].id);
 
         if (error) throw error;
@@ -1596,7 +1593,19 @@
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "guests" },
-        () => renderLiveGuests()
+        payload => {
+          if (
+            payload.eventType === "UPDATE" &&
+            payload.new &&
+            payload.new.completed === true
+          ) {
+            window.dispatchEvent(new CustomEvent("gruGuestCompletedLive", {
+              detail: payload.new
+            }));
+          }
+
+          renderLiveGuests();
+        }
       )
       .subscribe();
 
@@ -2266,6 +2275,23 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   let liveReservedGuest = null;
   let currentGuestRow = null;
 
+  function clearHostReservedTargetIfMatches(row){
+    if(!row || !row.id) return;
+
+    const reservedId =
+      liveReservedGuest?.id ||
+      localStorage.getItem("gruLiveReservedGuestId");
+
+    if(String(reservedId || "") !== String(row.id)) return;
+
+    liveReservedGuest = null;
+    localStorage.removeItem("gruLiveReservedGuestId");
+    localStorage.removeItem("gruLiveReservedGuestName");
+    localStorage.removeItem("gruReservedTarget");
+
+    if(reservedTargetName) reservedTargetName.textContent = "None";
+  }
+
   async function loadCurrentGuestRow(){
     const deviceId = getOrCreateDeviceId();
     const { data, error } = await supabaseClient
@@ -2422,6 +2448,11 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
     }
 
     currentGuestRow = { ...row, status: "completed", hijacked: false, completed: true };
+
+    window.dispatchEvent(new CustomEvent("gruGuestCompletedLive", {
+      detail: currentGuestRow
+    }));
+
     await renderLiveGuests();
   }
 
@@ -2558,6 +2589,11 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   window.addEventListener("gruGuestRegisteredLive", async () => {
     await loadCurrentGuestRow();
     await subscribeToCurrentGuest();
+    await renderLiveGuests();
+  });
+
+  window.addEventListener("gruGuestCompletedLive", async event => {
+    clearHostReservedTargetIfMatches(event.detail);
     await renderLiveGuests();
   });
 
