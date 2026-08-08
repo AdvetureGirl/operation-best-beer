@@ -1404,7 +1404,7 @@
 <p id="push-status-text">Notifications are not enabled on this device.</p>
 <div class="push-actions">
 <button id="enable-host-push" type="button">Enable Notifications</button>
-<button class="host-secondary" id="send-test-push" type="button">Send Test Push</button>
+<button id="send-test-push" type="button">Send Test Push</button>
 </div>
 </section><div class="host-actions">
 <button id="start-operation" type="button">Start Operation</button>
@@ -1931,7 +1931,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   window.addEventListener("scarletSchedulerTriggerCall", event=>{
     currentTarget = event.detail?.guest?.name || "Minion";
     stopAudio(ringtone);
-    openScarletCall();
+    p2Open();
     ringtone.play().catch(()=>{});
   });
 
@@ -3330,8 +3330,6 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   const FIRST_CALL_HOUR=12, FIRST_CALL_MINUTE=0;
   const LAST_CALL_HOUR=16, LAST_CALL_MINUTE=35;
 
-  const startOperation=document.getElementById("start-operation");
-  const pauseOperation=document.getElementById("pause-operation");
   const firstCard=document.getElementById("first-call-controls");
   const runningCard=document.getElementById("running-scheduler");
   const firstTimeEl=document.getElementById("first-call-time");
@@ -3345,26 +3343,15 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   const sendNow=document.getElementById("send-now");
   const sendNowRunning=document.getElementById("send-now-running");
 
+  let sharedState=null;
+
   function dayTs(h,m){const d=new Date();d.setHours(h,m,0,0);return d.getTime()}
   function fmtTime(ts){return new Date(ts).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}
   function fmtCountdown(ms){
-    if(ms<=0)return"00:00";
+    if(!Number.isFinite(ms)||ms<=0)return"00:00";
     const t=Math.floor(ms/1000),m=Math.floor(t/60),s=t%60;
     return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
   }
-  function getFirstCallAt(){
-    let v=Number(localStorage.getItem("scarletFirstCallAt")||"0");
-    if(!v){v=dayTs(FIRST_CALL_HOUR,FIRST_CALL_MINUTE);localStorage.setItem("scarletFirstCallAt",String(v))}
-    return v;
-  }
-  function setFirstCallAt(v){localStorage.setItem("scarletFirstCallAt",String(v));render()}
-  function firstDone(){return localStorage.getItem("scarletFirstCallDone")==="true"}
-  function setFirstDone(){localStorage.setItem("scarletFirstCallDone","true")}
-  function schedulerArmed(){return localStorage.getItem("scarletSchedulerArmed")==="true"}
-  function setSchedulerArmed(value){localStorage.setItem("scarletSchedulerArmed", value ? "true" : "false")}
-  function getNextAt(){return Number(localStorage.getItem("scarletNextCallAt")||"0")}
-  function setNextAt(v){localStorage.setItem("scarletNextCallAt",String(v))}
-  function clearNext(){localStorage.removeItem("scarletNextCallAt")}
 
   async function stats(){
     const {data,error}=await supabaseClient.from("guests").select("status,completed");
@@ -3382,176 +3369,96 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
     if(progressText)progressText.textContent=`${s.completed} / ${s.active} Minions Completed`;
   }
 
-  async function scheduleNext(){
-    const s=await stats();
-    if(s.eligible<=0){clearNext();render();return}
-    const remaining=Math.max(0,dayTs(LAST_CALL_HOUR,LAST_CALL_MINUTE)-Date.now());
-    const base=remaining/Math.max(1,s.eligible);
-    const bounded=Math.max(7*60000,Math.min(22*60000,base));
-    const jitter=.82+Math.random()*.36;
-    setNextAt(Date.now()+Math.round(bounded*jitter));
-    render();
-  }
-
-  async function triggerCall(force=false){
-    if(typeof window.triggerLiveScarletCall!=="function")return false;
-
-    if(force) localStorage.setItem("scarletForceNextCall","true");
-
-    const ok=await window.triggerLiveScarletCall({force});
-    if(ok&&!firstDone()){
-      setFirstDone();
-      clearNext();
-    }
-
-    if(!ok && force) localStorage.removeItem("scarletForceNextCall");
-
-    render();
-    return ok;
-  }
-
-  async function tick(){
-    const status=localStorage.getItem("gruOperationStatus")||"ready";
-    if(status!=="active" || !schedulerArmed()){render();return}
-
-    if(!firstDone()){
-      if(Date.now()>=getFirstCallAt())await triggerCall();
-      render();
-      return;
-    }
-
-    const reserved=localStorage.getItem("gruLiveReservedGuestId");
-    if(reserved){
-      if(statusText)statusText.textContent="Waiting for current mission...";
-      if(nextCountdownEl)nextCountdownEl.textContent="--:--";
-      updateProgress();
-      return;
-    }
-
-    let nextAt=getNextAt();
-    if(!nextAt){await scheduleNext();nextAt=getNextAt()}
-    if(nextAt&&Date.now()>=nextAt){
-      const ok=await triggerCall();
-      if(ok)clearNext();
-    }
+  async function loadSchedulerState(){
+    const {data,error}=await supabaseClient
+      .from("operation_state")
+      .select("*")
+      .eq("id",1)
+      .maybeSingle();
+    if(!error) sharedState=data;
     render();
   }
 
   function render(){
-    const status=localStorage.getItem("gruOperationStatus")||"ready";
-    const armed=schedulerArmed();
+    const state=sharedState;
+    const active=state?.status==="active" && state?.scheduler_armed===true;
+    const firstDone=state?.first_call_done===true;
 
-    if(!firstDone()){
+    if(!firstDone){
       firstCard?.classList.remove("hidden");
       runningCard?.classList.add("hidden");
-      const at=getFirstCallAt();
-      if(firstTimeEl)firstTimeEl.textContent=fmtTime(at);
-      if(firstCountdownEl)firstCountdownEl.textContent=fmtCountdown(at-Date.now());
+
+      const firstAt=state?.first_call_at ? new Date(state.first_call_at).getTime() : dayTs(FIRST_CALL_HOUR,FIRST_CALL_MINUTE);
+      if(firstTimeEl) firstTimeEl.textContent=fmtTime(firstAt);
+      if(firstCountdownEl) firstCountdownEl.textContent=fmtCountdown(firstAt-Date.now());
+
       if(statusBadge){
-        const isArmed = status==="active" && armed;
-        statusBadge.textContent=isArmed?"Armed":"Waiting";
-        statusBadge.className="scheduler-status-badge "+(isArmed?"active":"waiting");
+        statusBadge.textContent=active?"Armed":"Waiting";
+        statusBadge.className="scheduler-status-badge "+(active?"active":"waiting");
       }
-    }else{
+    } else {
       firstCard?.classList.add("hidden");
       runningCard?.classList.remove("hidden");
-      const reserved=localStorage.getItem("gruLiveReservedGuestId");
-      const nextAt=getNextAt();
-      if(statusText)statusText.textContent=reserved?"Waiting for current mission...":(status==="active"?"Running":"Paused");
-      if(nextCountdownEl)nextCountdownEl.textContent=reserved?"--:--":(nextAt?fmtCountdown(nextAt-Date.now()):"Calculating...");
+
+      const reserved=!!localStorage.getItem("gruLiveReservedGuestId");
+      const nextAt=state?.next_call_at ? new Date(state.next_call_at).getTime() : 0;
+
+      if(statusText) statusText.textContent=reserved?"Waiting for current mission...":(active?"Running":"Paused");
+      if(nextCountdownEl) nextCountdownEl.textContent=reserved?"--:--":(nextAt?fmtCountdown(nextAt-Date.now()):"Calculating...");
+
       if(statusBadge){
-        statusBadge.textContent=status==="active"?"Running":"Paused";
-        statusBadge.className="scheduler-status-badge "+(status==="active"?"active":"paused");
+        statusBadge.textContent=active?"Running":"Paused";
+        statusBadge.className="scheduler-status-badge "+(active?"active":"paused");
       }
     }
     updateProgress();
   }
 
-  delay5?.addEventListener("click",()=>setFirstCallAt(getFirstCallAt()+5*60000));
-  delay10?.addEventListener("click",()=>setFirstCallAt(getFirstCallAt()+10*60000));
-  sendNow?.addEventListener("click",async()=>{
-    if((localStorage.getItem("gruOperationStatus")||"ready")!=="active"){
-      alert("Start the operation first.");return;
-    }
-    setFirstCallAt(Date.now());
-    await triggerCall(true);
+  async function patchState(values){
+    const {data,error}=await supabaseClient
+      .from("operation_state")
+      .update({...values,updated_at:new Date().toISOString()})
+      .eq("id",1)
+      .select()
+      .single();
+    if(error) throw error;
+    sharedState=data;
+    render();
+  }
+
+  delay5?.addEventListener("click",async()=>{
+    const current=sharedState?.first_call_at ? new Date(sharedState.first_call_at).getTime() : Date.now();
+    await patchState({first_call_at:new Date(current+5*60000).toISOString()});
   });
 
-  sendNowRunning?.addEventListener("click",async()=>{
-    if((localStorage.getItem("gruOperationStatus")||"ready")!=="active"){
-      alert("Start the operation first.");return;
-    }
-
-    if(localStorage.getItem("gruLiveReservedGuestId")){
-      alert("A current mission is still in progress.");
-      return;
-    }
-
-    clearNext();
-    const ok = await triggerCall(true);
-    if(!ok){
-      alert("No eligible Minion is currently available.");
-    }
+  delay10?.addEventListener("click",async()=>{
+    const current=sharedState?.first_call_at ? new Date(sharedState.first_call_at).getTime() : Date.now();
+    await patchState({first_call_at:new Date(current+10*60000).toISOString()});
   });
 
-  startOperation?.addEventListener("click",()=>{
-    localStorage.removeItem("gruLiveReservedGuestId");
-    localStorage.removeItem("gruLiveReservedGuestName");
-    localStorage.removeItem("gruReservedTarget");
-    localStorage.removeItem("scarletPendingHijackTarget");
-    localStorage.removeItem("scarletPendingHijackTimestamp");
+  async function forceServerCall(){
+    const {error}=await supabaseClient.functions.invoke("send-host-push",{
+      body:{mode:"force"}
+    });
+    if(error) alert("Unable to trigger Scarlet right now.");
+  }
 
-    const reservedName=document.getElementById("reserved-target-name");
-    if(reservedName) reservedName.textContent="None";
+  sendNow?.addEventListener("click",forceServerCall);
+  sendNowRunning?.addEventListener("click",forceServerCall);
 
-    localStorage.setItem("scarletFirstCallDone","false");
-    setSchedulerArmed(true);
+  supabaseClient
+    .channel("operation-scheduler-state")
+    .on("postgres_changes",
+      {event:"*",schema:"public",table:"operation_state",filter:"id=eq.1"},
+      payload=>{sharedState=payload.new;render();}
+    )
+    .subscribe();
 
-    const noon = dayTs(FIRST_CALL_HOUR,FIRST_CALL_MINUTE);
-    const firstAt = Date.now() < noon
-      ? noon
-      : Date.now() + (5 * 60 * 1000);
-
-    localStorage.setItem("scarletFirstCallAt",String(firstAt));
-    clearNext();
-    render();
-  },true);
-
-  pauseOperation?.addEventListener("click",()=>setTimeout(render,50));
-
-  document.getElementById("end-operation")?.addEventListener("click",()=>{
-    setSchedulerArmed(false);
-    clearNext();
-    render();
-  },true);
-
-  window.addEventListener("gruGuestCompletedLive",async()=>{
-    if(firstDone()){clearNext();await scheduleNext()}
-    render();
-  });
-  window.addEventListener("gruGuestRegisteredLive",async()=>{
-    if(firstDone()){clearNext();await scheduleNext()}
-    render();
-  });
-  window.addEventListener("scarletResetSequence",()=>{
-    localStorage.setItem("scarletFirstCallDone","false");
-    setSchedulerArmed(false);
-
-    const noon = dayTs(FIRST_CALL_HOUR,FIRST_CALL_MINUTE);
-    const firstAt = Date.now() < noon
-      ? noon
-      : Date.now() + (5 * 60 * 1000);
-
-    localStorage.setItem("scarletFirstCallAt",String(firstAt));
-    clearNext();
-    render();
-  });
-
-  setInterval(tick,1000);
-  window.addEventListener("load",render);
-  render();
+  setInterval(render,1000);
+  window.addEventListener("gruGuestCompletedLive",loadSchedulerState);
+  window.addEventListener("gruGuestRegisteredLive",loadSchedulerState);
+  window.addEventListener("load",loadSchedulerState);
 })();
-
 
 /* ===== Master Start Operation controller ===== */
 (function(){
@@ -3609,6 +3516,15 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
           id:1,
           status:"active",
           current_stop:stop,
+          scheduler_armed:true,
+          first_call_done:false,
+          first_call_at:new Date(firstAt).toISOString(),
+          next_call_at:null,
+          last_call_at:new Date((()=>{
+            const d=new Date();
+            d.setHours(16,35,0,0);
+            return d.getTime();
+          })()).toISOString(),
           updated_at:new Date().toISOString()
         }, { onConflict:"id" });
 
@@ -3674,7 +3590,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
 })();
 
 
-/* ===== Host Web Push Trial ===== */
+/* ===== Host Web Push + Scarlet Recovery ===== */
 (function(){
   const VAPID_PUBLIC_KEY="BF1ki7I4TnI_gI8twQaifGMaKfkg9m1h6wFvvk9M3-1NsZXlgDs7dbG2s_NpM6UGQZ-2KqU1EeB3LsBSUFhpkL8";
   const enableButton=document.getElementById("enable-host-push");
@@ -3689,27 +3605,15 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   }
 
   async function getRegistration(){
-    if(!("serviceWorker" in navigator)) throw new Error("Service workers are not supported on this browser.");
-    return await navigator.serviceWorker.register("./service-worker.js");
-  }
-
-  async function saveSubscription(subscription){
-    const payload={
-      device_id:getOrCreateDeviceId(),
-      minion_name:localStorage.getItem("gruMinionName")||"Host",
-      subscription:subscription.toJSON(),
-      is_host:true,
-      updated_at:new Date().toISOString()
-    };
-    const {error}=await supabaseClient.from("push_subscriptions").upsert(payload,{onConflict:"device_id"});
-    if(error) throw error;
+    if(!("serviceWorker" in navigator))throw new Error("Service workers are not supported on this browser.");
+    return navigator.serviceWorker.register("./service-worker.js");
   }
 
   async function enablePush(){
     try{
-      if(!("Notification" in window)) throw new Error("Notifications are not supported on this browser.");
+      if(!("Notification" in window))throw new Error("Notifications are not supported on this browser.");
       const permission=await Notification.requestPermission();
-      if(permission!=="granted") throw new Error("Notification permission was not granted.");
+      if(permission!=="granted")throw new Error("Notification permission was not granted.");
       const reg=await getRegistration();
       let sub=await reg.pushManager.getSubscription();
       if(!sub){
@@ -3718,32 +3622,57 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
           applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
       }
-      await saveSubscription(sub);
+      const {error}=await supabaseClient.from("push_subscriptions").upsert({
+        device_id:getOrCreateDeviceId(),
+        minion_name:localStorage.getItem("gruMinionName")||"Host",
+        subscription:sub.toJSON(),
+        is_host:true,
+        updated_at:new Date().toISOString()
+      },{onConflict:"device_id"});
+      if(error)throw error;
       statusText.textContent="Host notifications enabled on this device.";
       enableButton.textContent="Notifications Enabled";
       enableButton.disabled=true;
     }catch(error){
-      console.error(error);
       statusText.textContent=`Push setup failed: ${error.message||error}`;
     }
   }
 
   async function sendTestPush(){
     try{
-      statusText.textContent="Sending test notification...";
       const {error}=await supabaseClient.functions.invoke("send-host-push",{
-        body:{
-          title:"GRU PRIORITY TRANSMISSION",
-          body:"Scarlet Overkill is attempting to contact you.",
-          url:"./?scarlet_push=1"
-        }
+        body:{mode:"test"}
       });
-      if(error) throw error;
-      statusText.textContent="Test push sent. Lock or leave this page and check your phone.";
+      if(error)throw error;
+      statusText.textContent="Test push sent.";
     }catch(error){
-      console.error(error);
       statusText.textContent=`Test push failed: ${error.message||error}`;
     }
+  }
+
+  async function recoverReservedTargetFromServer(){
+    const params=new URLSearchParams(location.search);
+    if(params.get("scarlet_push")!=="1")return;
+
+    const {data,error}=await supabaseClient
+      .from("guests")
+      .select("*")
+      .eq("status","reserved")
+      .eq("completed",false)
+      .limit(1);
+
+    if(error||!data||!data.length)return;
+    const guest=data[0];
+
+    localStorage.setItem("gruLiveReservedGuestId",guest.id);
+    localStorage.setItem("gruLiveReservedGuestName",guest.name);
+
+    const reservedName=document.getElementById("reserved-target-name");
+    if(reservedName)reservedName.textContent=guest.name;
+
+    window.dispatchEvent(new CustomEvent("scarletSchedulerTriggerCall",{detail:{guest}}));
+
+    history.replaceState(null,"",location.pathname);
   }
 
   enableButton?.addEventListener("click",enablePush);
@@ -3758,8 +3687,8 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
         enableButton.textContent="Notifications Enabled";
         enableButton.disabled=true;
       }
-    }catch(_){
-    }
+    }catch(_){}
+    setTimeout(recoverReservedTargetFromServer,800);
   });
 })();
 </script>
