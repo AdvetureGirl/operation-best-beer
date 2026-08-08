@@ -1916,7 +1916,7 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
   window.addEventListener("scarletSchedulerTriggerCall", event=>{
     currentTarget = event.detail?.guest?.name || "Minion";
     stopAudio(ringtone);
-    p2Open();
+    openScarletCall();
     ringtone.play().catch(()=>{});
   });
 
