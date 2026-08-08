@@ -1118,6 +1118,13 @@
   width:100%;min-height:44px;border:1px solid #171717;background:#171717;color:#fff;
   font-weight:900;letter-spacing:.06em;text-transform:uppercase
 }
+
+.host-push-controls{margin:18px 0;padding:18px;border:1px solid #a8a29a;background:#fff}
+.host-push-controls h3{margin:5px 0 8px;font-size:1.05rem}
+.host-push-controls p{margin:0 0 12px!important;color:#5f5b54;font-size:.84rem;line-height:1.45}
+.push-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.push-actions button{min-height:44px;border:0;background:#171717;color:#fff;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+@media(max-width:520px){.push-actions{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -1391,6 +1398,14 @@
 <div class="scheduler-running-actions">
 <button id="send-now-running" type="button">Send Now</button>
 </div></div>
+</section><section class="host-push-controls" id="host-push-controls">
+<div class="host-kicker">HOST ALERTS</div>
+<h3>Scarlet Notifications</h3>
+<p id="push-status-text">Notifications are not enabled on this device.</p>
+<div class="push-actions">
+<button id="enable-host-push" type="button">Enable Notifications</button>
+<button class="host-secondary" id="send-test-push" type="button">Send Test Push</button>
+</div>
 </section><div class="host-actions">
 <button id="start-operation" type="button">Start Operation</button>
 <button class="host-secondary" id="pause-operation" type="button">Pause Operation</button>
@@ -3656,6 +3671,96 @@ if(endCallButton)endCallButton.addEventListener("click",closeScarletCall);
 
     masterStartOperation();
   },true);
+})();
+
+
+/* ===== Host Web Push Trial ===== */
+(function(){
+  const VAPID_PUBLIC_KEY="BF1ki7I4TnI_gI8twQaifGMaKfkg9m1h6wFvvk9M3-1NsZXlgDs7dbG2s_NpM6UGQZ-2KqU1EeB3LsBSUFhpkL8";
+  const enableButton=document.getElementById("enable-host-push");
+  const testButton=document.getElementById("send-test-push");
+  const statusText=document.getElementById("push-status-text");
+
+  function urlBase64ToUint8Array(base64String){
+    const padding="=".repeat((4-base64String.length%4)%4);
+    const base64=(base64String+padding).replace(/-/g,"+").replace(/_/g,"/");
+    const rawData=atob(base64);
+    return Uint8Array.from([...rawData].map(c=>c.charCodeAt(0)));
+  }
+
+  async function getRegistration(){
+    if(!("serviceWorker" in navigator)) throw new Error("Service workers are not supported on this browser.");
+    return await navigator.serviceWorker.register("./service-worker.js");
+  }
+
+  async function saveSubscription(subscription){
+    const payload={
+      device_id:getOrCreateDeviceId(),
+      minion_name:localStorage.getItem("gruMinionName")||"Host",
+      subscription:subscription.toJSON(),
+      is_host:true,
+      updated_at:new Date().toISOString()
+    };
+    const {error}=await supabaseClient.from("push_subscriptions").upsert(payload,{onConflict:"device_id"});
+    if(error) throw error;
+  }
+
+  async function enablePush(){
+    try{
+      if(!("Notification" in window)) throw new Error("Notifications are not supported on this browser.");
+      const permission=await Notification.requestPermission();
+      if(permission!=="granted") throw new Error("Notification permission was not granted.");
+      const reg=await getRegistration();
+      let sub=await reg.pushManager.getSubscription();
+      if(!sub){
+        sub=await reg.pushManager.subscribe({
+          userVisibleOnly:true,
+          applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+      }
+      await saveSubscription(sub);
+      statusText.textContent="Host notifications enabled on this device.";
+      enableButton.textContent="Notifications Enabled";
+      enableButton.disabled=true;
+    }catch(error){
+      console.error(error);
+      statusText.textContent=`Push setup failed: ${error.message||error}`;
+    }
+  }
+
+  async function sendTestPush(){
+    try{
+      statusText.textContent="Sending test notification...";
+      const {error}=await supabaseClient.functions.invoke("send-host-push",{
+        body:{
+          title:"GRU PRIORITY TRANSMISSION",
+          body:"Scarlet Overkill is attempting to contact you.",
+          url:"./?scarlet_push=1"
+        }
+      });
+      if(error) throw error;
+      statusText.textContent="Test push sent. Lock or leave this page and check your phone.";
+    }catch(error){
+      console.error(error);
+      statusText.textContent=`Test push failed: ${error.message||error}`;
+    }
+  }
+
+  enableButton?.addEventListener("click",enablePush);
+  testButton?.addEventListener("click",sendTestPush);
+
+  window.addEventListener("load",async()=>{
+    try{
+      const reg=await getRegistration();
+      const sub=await reg.pushManager.getSubscription();
+      if(sub){
+        statusText.textContent="Host notifications are already enabled on this device.";
+        enableButton.textContent="Notifications Enabled";
+        enableButton.disabled=true;
+      }
+    }catch(_){
+    }
+  });
 })();
 </script>
 </body>
